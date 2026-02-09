@@ -6,7 +6,7 @@ import asyncio
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# --- تنظیمات توکن ---
+# --- تنظیمات ---
 TELEGRAM_TOKEN = "8154056569:AAFdWvFe7YzrAmAIV4BgsBnq20VSCmA_TZ0"
 USER_ID = None 
 
@@ -22,17 +22,18 @@ COIN_MAP = {
 def analyze_logic(symbol):
     try:
         ticker = COIN_MAP.get(symbol)
-        # دانلود دیتا با مدیریت خطای شبکه
-        data = yf.download(ticker, period="10d", interval="1h", progress=False, multi_level_index=False)
+        # دانلود دیتا با تنظیم متغیر جدید برای رفع باگ ستون‌ها
+        data = yf.download(ticker, period="10d", interval="1h", progress=False)
         
-        if data is None or data.empty or len(data) < 50:
+        if data is None or data.empty:
             return None
         
+        # اصلاح ساختار ستون‌ها برای نسخه جدید yfinance
         df = data.copy()
-        # پاکسازی نام ستون‌ها برای اطمینان
-        df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
-        
-        # محاسبه اندیکاتورها
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
+        # محاسبه اندیکاتورها با اطمینان از وجود دیتا
         df['RSI'] = ta.rsi(df['Close'], length=14)
         df['EMA_20'] = ta.ema(df['Close'], length=20)
         df['EMA_50'] = ta.ema(df['Close'], length=50)
@@ -41,14 +42,11 @@ def analyze_logic(symbol):
         last = df.iloc[-1]
         price = float(last['Close'])
         rsi = float(last['RSI']) if not pd.isna(last['RSI']) else 50
-        ema20 = float(last['EMA_20']) if not pd.isna(last['EMA_20']) else price
-        ema50 = float(last['EMA_50']) if not pd.isna(last['EMA_50']) else price
         atr = float(last['ATR']) if not pd.isna(last['ATR']) else (price * 0.02)
         
         score = 0
-        if price > ema20 and ema20 > ema50: score += 2
+        if price > float(last['EMA_20']): score += 1
         if rsi < 35: score += 2
-        if price < ema20: score -= 2
         if rsi > 65: score -= 2
 
         return {
@@ -56,46 +54,35 @@ def analyze_logic(symbol):
             'tp': price + (atr * 2), 'sl': price - (atr * 1.5)
         }
     except Exception as e:
-        print(f"Error analyzing {symbol}: {e}")
+        print(f"Error in analysis: {e}")
         return None
-
-async def market_scanner(context: ContextTypes.DEFAULT_TYPE):
-    global USER_ID
-    if USER_ID is None: return
-    for symbol in COIN_MAP.keys():
-        res = analyze_logic(symbol)
-        if res and res['score'] >= 3:
-            msg = (f"🔔 **فرصت خرید شناسایی شد**\n\n💎 ارز: {symbol}\n💵 قیمت: {res['price']:,.2f}\n"
-                   f"🎯 هدف: {res['tp']:,.2f}\n🛑 حد ضرر: {res['sl']:,.2f}")
-            try:
-                await context.bot.send_message(chat_id=USER_ID, text=msg, parse_mode='Markdown')
-            except: pass
-        await asyncio.sleep(1)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global USER_ID
     USER_ID = update.effective_chat.id
     keyboard = [[InlineKeyboardButton(coin, callback_data=coin)] for coin in COIN_MAP.keys()]
     await update.message.reply_text(
-        "🚀 **ربات تریدر هوشمند (نسخه اصلاح شده)**\n\nاسکنر خودکار فعال شد. برای تحلیل دستی یکی از ارزها را انتخاب کنید:",
+        "✅ **ربات با موفقیت متصل شد**\n\nتحلیل هوشمند بازار آماده است. یک ارز را انتخاب کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown'
     )
 
 async def handle_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    symbol = query.data
     
-    res = analyze_logic(symbol)
+    # نمایش پیام در حال پردازش برای کاربر
+    await query.edit_message_text("🔄 در حال دریافت دیتای زنده...")
+    
+    res = analyze_logic(query.data)
     if not res:
-        await query.edit_message_text("⚠️ سرور صرافی شلوغ است. لطفاً دوباره دکمه را بزنید.")
+        await query.edit_message_text("⚠️ خطا در ارتباط با بازار. دوباره تلاش کنید.")
         return
 
-    status = "🟢 سیگنال خرید" if res['score'] >= 2 else "🔴 هشدار فروش" if res['score'] <= -2 else "🟡 خنثی"
-    result_text = (f"✨ **تحلیل {symbol}**\n\n💰 قیمت: {res['price']:,.2f}\n🎯 وضعیت: {status}\n"
+    status = "🟢 خرید" if res['score'] >= 1 else "🔴 فروش" if res['score'] <= -1 else "🟡 خنثی"
+    result_text = (f"💎 **تحلیل {query.data}**\n\n💰 قیمت: {res['price']:,.2f}\n🎯 وضعیت: {status}\n"
                    f"🚀 حد سود: {res['tp']:,.2f}\n🛑 حد ضرر: {res['sl']:,.2f}\n📊 RSI: {res['rsi']:.1f}")
     
-    keyboard = [[InlineKeyboardButton("🔄 آپدیت", callback_data=symbol)], [InlineKeyboardButton("🔙 لیست", callback_data="back")]]
+    keyboard = [[InlineKeyboardButton("🔄 بروزرسانی", callback_data=query.data)], [InlineKeyboardButton("🔙 بازگشت", callback_data="back")]]
     await query.edit_message_text(text=result_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 async def back(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -105,12 +92,13 @@ async def back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("ارز مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 if __name__ == '__main__':
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
-    if app.job_queue:
-        app.job_queue.run_repeating(market_scanner, interval=1800, first=10)
+    # استفاده از سیستم ساده بدون JobQueue برای رفع خطای ری‌لیوی
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
     
-    app.add_handler(CommandHandler('start', start))
-    app.add_handler(CallbackQueryHandler(back, pattern="back"))
-    app.add_handler(CallbackQueryHandler(handle_selection))
-    app.run_polling()
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CallbackQueryHandler(back, pattern="back"))
+    application.add_handler(CallbackQueryHandler(handle_selection))
+    
+    print("Bot is starting...")
+    application.run_polling(drop_pending_updates=True)
     
