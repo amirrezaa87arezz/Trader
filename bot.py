@@ -1,4 +1,4 @@
-import os, uuid, time, logging, io, sqlite3
+import os, uuid, time, logging, io, sqlite3, asyncio
 import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
@@ -23,7 +23,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- لیست گسترده ارزها (۲۰ ارز برتر) ---
 COIN_MAP = {
     'BTC/USDT': 'BTC-USD', 'ETH/USDT': 'ETH-USD', 'SOL/USDT': 'SOL-USD',
     'BNB/USDT': 'BNB-USD', 'DOGE/USDT': 'DOGE-USD', 'PEPE/USDT': 'PEPE-USD',
@@ -34,58 +33,47 @@ COIN_MAP = {
     'FET/USDT': 'FET-USD', 'RNDR/USDT': 'RNDR-USD'
 }
 
-# --- موتور تحلیل فوق پیشرفته ---
+# --- موتور تحلیل پیشرفته ---
 def get_signal(symbol):
     try:
         ticker = COIN_MAP.get(symbol)
-        df = yf.download(ticker, period="7d", interval="1h", progress=False)
-        if df.empty: return None, None
+        data = yf.download(ticker, period="5d", interval="1h", progress=False)
+        if data.empty: return None, None
+        df = data.copy()
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
         
-        # اندیکاتورهای ترکیبی برای دقت بالا
         df['RSI'] = ta.rsi(df['Close'], length=14)
         df['EMA_20'] = ta.ema(df['Close'], length=20)
         df['EMA_200'] = ta.ema(df['Close'], length=200)
-        # Bollinger Bands
         bb = ta.bbands(df['Close'], length=20, std=2)
         df = pd.concat([df, bb], axis=1)
-        # ATR برای TP/SL
         df['ATR'] = ta.atr(df['High'], df['Low'], df['Close'], length=14)
         
         last = df.iloc[-1]
         price = float(last['Close'])
         
-        # منطق تحلیل (ترکیب روند و نوسان)
         score = 65 
         if price > last['EMA_20']: score += 10
-        if price > last['EMA_200']: score += 15 # روند صعودی بلندمدت
-        if last['RSI'] < 35: score += 15 # اشباع فروش (فرصت خرید)
-        if last['RSI'] > 70: score -= 20 # اشباع خرید (خطر)
+        if price > last['EMA_200']: score += 15
+        if last['RSI'] < 35: score += 15
         
         win_p = max(min(score, 98), 35)
-        # محاسبه دقیق تارگت و استاپ بر اساس نوسان بازار (ATR)
         tp = price + (last['ATR'] * 2.3)
         sl = price - (last['ATR'] * 1.6)
         
-        # رسم نمودار حرفه‌ای
         plt.figure(figsize=(10, 6))
         plt.style.use('dark_background')
-        plt.plot(df.index, df['Close'], color='#00ffcc', label='Price', linewidth=2)
-        plt.plot(df.index, df['EMA_20'], color='#ff9900', label='EMA 20', alpha=0.6)
-        plt.fill_between(df.index, df['BBU_20_2.0'], df['BBL_20_2.0'], color='white', alpha=0.1)
-        plt.title(f"AI Advanced Analysis: {symbol}")
-        plt.grid(alpha=0.1)
+        plt.plot(df.index, df['Close'], color='#00ffcc', label='Price')
+        plt.title(f"AI Analysis: {symbol}")
         buf = io.BytesIO()
         plt.savefig(buf, format='png')
         buf.seek(0)
         plt.close()
         
         return {'symbol': symbol, 'price': price, 'win_p': win_p, 'tp': tp, 'sl': sl}, buf
-    except Exception as e:
-        logging.error(f"Error in analyze: {e}")
-        return None, None
+    except: return None, None
 
-# --- هندلرها ---
+# --- هندلرهای تلگرام ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = str(update.effective_user.id)
     name = update.effective_user.first_name
@@ -100,13 +88,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = [['💰 لیست ارزها', '🔥 پیشنهاد طلایی'], ['🎓 راهنمای جامع', '⏳ اعتبار باقی‌مانده']]
         await update.message.reply_text(f"🚀 خوش آمدی {name}!", reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True))
     else:
-        await update.message.reply_text(f"سلام {name}! برای دسترسی به پنل سیگنال، لایسنس خود را وارد کنید:")
+        await update.message.reply_text(f"سلام {name}! خوش آمدی.\nبرای استفاده از تحلیل‌های هوشمند، لایسنس تهیه کن.")
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = str(update.effective_user.id)
     text = update.message.text
     
-    # بخش ادمین
+    # --- بخش مدیریت ادمین ---
     if int(uid) == ADMIN_ID:
         if text == '➕ ساخت لایسنس':
             key = f"VIP-{uuid.uuid4().hex[:6].upper()}"
@@ -116,6 +104,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.close()
             await update.message.reply_text(f"✅ لایسنس ۳۰ روزه ساخته شد:\n`{key}`", parse_mode='Markdown')
             return
+        
         elif text == '👥 مدیریت کاربران':
             conn = sqlite3.connect(DB_PATH)
             users = conn.execute("SELECT user_id, name FROM users").fetchall()
@@ -123,55 +112,63 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not users:
                 await update.message.reply_text("هنوز کاربری عضو نشده است.")
                 return
-            btns = []
+            
+            response = "👤 **لیست کاربران فعال:**\n\n"
             for u_id, u_name in users:
-                btns.append([InlineKeyboardButton(f"❌ حذف {u_name} ({u_id})", callback_data=f"del_{u_id}")])
-            await update.message.reply_text("لیست کاربران فعال:", reply_markup=InlineKeyboardMarkup(btns))
+                response += f"🔹 نام: {u_name} | آیدی: `{u_id}`\n"
+                response += f"برای حذف: /del_{u_id}\n\n"
+            await update.message.reply_text(response, parse_mode='Markdown')
             return
 
-    # پیشنهاد طلایی (اصلاح شده)
+    # حذف کاربر با دستور
+    if text.startswith("/del_") and int(uid) == ADMIN_ID:
+        target_id = text.replace("/del_", "")
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("DELETE FROM users WHERE user_id=?", (target_id,))
+        conn.commit()
+        conn.close()
+        await update.message.reply_text(f"✅ کاربر {target_id} با موفقیت حذف شد.")
+        return
+
+    # --- بخش پیشنهاد طلایی ---
     if text == '🔥 پیشنهاد طلایی':
-        msg = await update.message.reply_text("🔎 در حال تحلیل ۲۰ ارز برتر برای پیدا کردن بهترین فرصت...")
+        wait_msg = await update.message.reply_text("🔎 در حال اسکن بازار...")
+        # فقط ۵ ارز اول برای جلوگیری از هنگ کردن
+        scan_list = list(COIN_MAP.keys())[:5]
         best_sig = None
         max_win = 0
-        # فقط ۵ ارز اول را برای سرعت بیشتر اسکن می‌کند
-        for coin in list(COIN_MAP.keys())[:8]:
+        
+        for coin in scan_list:
             res, _ = get_signal(coin)
             if res and res['win_p'] > max_win:
                 max_win = res['win_p']
                 best_sig = res
+        
         if best_sig:
-            await msg.edit_text(f"🌟 **پیشنهاد طلایی سیستم:**\n\nارز: {best_sig['symbol']}\nشانس برد: `{best_sig['win_p']}%` \nقیمت: `{best_sig['price']:,.4f}`\n\n(برای جزئیات بیشتر از لیست ارزها انتخابش کنید)", parse_mode='Markdown')
+            result_text = (
+                f"🌟 **بهترین پیشنهاد فعلی:**\n\n"
+                f"🪙 ارز: {best_sig['symbol']}\n"
+                f"📈 شانس برد: `{best_sig['win_p']}%` \n"
+                f"💰 قیمت ورود: `{best_sig['price']:,.4f}`\n\n"
+                f"تحلیل کامل را در بخش 'لیست ارزها' ببینید."
+            )
+            await wait_msg.edit_text(result_text, parse_mode='Markdown')
+        else:
+            await wait_msg.edit_text("❌ فعلاً سیگنال قوی پیدا نشد. دوباره تلاش کنید.")
         return
 
-    # اعتبار باقی‌مانده
+    # --- سایر بخش‌ها ---
     if text == '⏳ اعتبار باقی‌مانده':
         conn = sqlite3.connect(DB_PATH)
         user = conn.execute("SELECT expiry FROM users WHERE user_id=?", (uid,)).fetchone()
         conn.close()
         if user:
             rem = user[0] - time.time()
-            await update.message.reply_text(f"⏳ اشتراک شما: {int(rem // 86400)} روز و {int((rem % 86400) // 3600)} ساعت باقی‌مانده.")
+            days = int(rem // 86400)
+            hours = int((rem % 86400) // 3600)
+            await update.message.reply_text(f"⏳ اشتراک شما: {days} روز و {hours} ساعت باقی است.")
         return
 
-    # راهنمای جامع (اصلاح شده)
-    if text == '🎓 راهنمای جامع':
-        guide = (
-            "🚀 **راهنمای جامع ترید با ربات AI**\n\n"
-            "✅ **TP (Take Profit) یا حد سود:**\n"
-            "قیمتی است که ربات پیش‌بینی کرده سود شما در آنجا تکمیل می‌شود. بهتر است معامله را در این نقطه ببندید.\n\n"
-            "❌ **SL (Stop Loss) یا حد ضرر:**\n"
-            "حیاتی‌ترین بخش! قیمتی است که اگر بازار برعکس شد، باید از معامله خارج شوید تا کل موجودی‌تان (Liquid) از بین نرود.\n\n"
-            "📈 **نحوه استفاده:**\n"
-            "۱. یک ارز با شانس بالای ۸۰٪ انتخاب کنید.\n"
-            "۲. در صرافی وارد پوزیشن Buy شوید.\n"
-            "۳. اعداد TP و SL را دقیقاً در صرافی ست کنید.\n"
-            "۴. لوریج (Leverage) را برای امنیت روی ۲ یا ۳ بگذارید."
-        )
-        await update.message.reply_text(guide, parse_mode='Markdown')
-        return
-
-    # فعال‌سازی لایسنس
     if text.startswith("VIP-"):
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -181,34 +178,25 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             c.execute("DELETE FROM licenses WHERE key=?", (text,))
             c.execute("INSERT OR REPLACE INTO users VALUES (?, ?, ?)", (uid, update.effective_user.first_name, expiry))
             conn.commit()
-            await update.message.reply_text("✅ دسترسی VIP فعال شد! /start را بزنید.")
+            await update.message.reply_text("✅ فعال شد! /start را بزنید.")
         else:
-            await update.message.reply_text("❌ لایسنس نامعتبر است.")
+            await update.message.reply_text("❌ لایسنس معتبر نیست.")
         conn.close()
         return
 
     if text == '💰 لیست ارزها':
         btns = [[InlineKeyboardButton(k, callback_data=k) for k in list(COIN_MAP.keys())[i:i+2]] for i in range(0, len(COIN_MAP), 2)]
-        await update.message.reply_text("انتخاب ارز برای تحلیل:", reply_markup=InlineKeyboardMarkup(btns))
+        await update.message.reply_text("انتخاب ارز:", reply_markup=InlineKeyboardMarkup(btns))
+
+    if text == '🎓 راهنمای جامع':
+        await update.message.reply_text("اینجا راهنمای ترید است...")
 
 async def query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    # مدیریت حذف کاربر توسط ادمین
-    if query.data.startswith("del_"):
-        u_id = query.data.split("_")[1]
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("DELETE FROM users WHERE user_id=?", (u_id,))
-        conn.commit()
-        conn.close()
-        await query.answer("کاربر با موفقیت حذف شد.")
-        await query.edit_message_text("✅ کاربر از دیتابیس حذف شد.")
-        return
-    
-    # نمایش تحلیل ارز
-    await query.answer("در حال تحلیل...")
+    await query.answer("در حال دریافت تحلیل...")
     res, chart = get_signal(query.data)
     if res:
-        cap = f"📊 **تحلیل {res['symbol']}**\n\n🎯 شانس برد: `{res['win_p']}%` \n💰 قیمت: `{res['price']:,.4f}`\n✅ حد سود (TP): `{res['tp']:,.4f}`\n❌ حد ضرر (SL): `{res['sl']:,.4f}`"
+        cap = f"📊 **تحلیل {res['symbol']}**\n\n🎯 شانس برد: `{res['win_p']}%` \n💰 قیمت ورود: `{res['price']:,.4f}`\n✅ حد سود: `{res['tp']:,.4f}`\n❌ حد ضرر: `{res['sl']:,.4f}`"
         await context.bot.send_photo(update.effective_chat.id, chart, caption=cap, parse_mode='Markdown')
 
 if __name__ == '__main__':
