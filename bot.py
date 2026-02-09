@@ -2,13 +2,15 @@ import os
 import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
+import asyncio
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# --- تنظیمات توکن ---
+# --- تنظیمات توکن و چت ---
 TELEGRAM_TOKEN = "8154056569:AAFdWvFe7YzrAmAIV4BgsBnq20VSCmA_TZ0"
+# آیدی عددی شما برای ارسال هشدار (بعد از زدن /start ربات آن را پیدا می‌کند)
+USER_ID = None 
 
-# لیست ارزها با فرمت استاندارد جهانی
 COIN_MAP = {
     'BTC/USDT': 'BTC-USD',
     'ETH/USDT': 'ETH-USD',
@@ -18,83 +20,100 @@ COIN_MAP = {
     'DOGE/USDT': 'DOGE-USD'
 }
 
-def get_smart_prediction(symbol):
+def analyze_logic(symbol):
     try:
-        ticker_symbol = COIN_MAP.get(symbol)
-        # دریافت داده‌های اخیر از منبع معتبر Yahoo Finance (بدون تحریم و خطا)
-        data = yf.download(ticker_symbol, period="7d", interval="1h", progress=False)
+        ticker = COIN_MAP.get(symbol)
+        data = yf.download(ticker, period="5d", interval="1h", progress=False)
+        if data.empty: return None
         
-        if data.empty:
-            return "❌ خطا: دیتای بازار در دسترس نیست."
-
         df = data.copy()
-        # اندیکاتورهای فوق حرفه‌ای
         df['RSI'] = ta.rsi(df['Close'], length=14)
         df['EMA_20'] = ta.ema(df['Close'], length=20)
         df['EMA_50'] = ta.ema(df['Close'], length=50)
+        df['ATR'] = ta.atr(df['High'], df['Low'], df['Close'], length=14)
         
-        current_price = float(df['Close'].iloc[-1])
-        rsi = float(df['RSI'].iloc[-1])
-        ema20 = float(df['EMA_20'].iloc[-1])
-        ema50 = float(df['EMA_50'].iloc[-1])
-
-        # سیستم امتیازدهی هوشمند برای پیش‌بینی سود یا ضرر
+        last = df.iloc[-1]
+        price, rsi, ema20, ema50, atr = float(last['Close']), float(last['RSI']), float(last['EMA_20']), float(last['EMA_50']), float(last['ATR'])
+        
         score = 0
-        if current_price > ema20 and ema20 > ema50: score += 2  # روند صعودی قوی
-        if rsi < 35: score += 2  # قیمت در کف (فرصت خرید)
-        if current_price < ema20: score -= 2  # شروع ریزش
-        if rsi > 65: score -= 2  # قیمت در سقف (خطر ضرر)
+        if price > ema20 and ema20 > ema50: score += 2
+        if rsi < 35: score += 2
+        if price < ema20: score -= 2
+        if rsi > 65: score -= 2
 
-        if score >= 2:
-            status = "🟢 **پرسود (پیش‌بینی صعودی)**"
-            note = "تحلیل هوشمند: سیگنال خرید صادر شده است. احتمال سوددهی بسیار بالاست."
-        elif score <= -2:
-            status = "🔴 **ضررده (پیش‌بینی نزولی)**"
-            note = "تحلیل هوشمند: بازار در وضعیت اشباع است. احتمال ضرر در صورت ورود بسیار زیاد است."
-        else:
-            status = "🟡 **خنثی (بدون جهت)**"
-            note = "سیگنال قطعی وجود ندارد. برای معامله امن، منتظر فرصت بعدی بمانید."
+        return {
+            'score': score,
+            'price': price,
+            'rsi': rsi,
+            'tp': price + (atr * 2),
+            'sl': price - (atr * 1.5)
+        }
+    except: return None
 
-        return (f"✨ **تحلیل فوق حرفه‌ای {symbol}**\n\n"
-                f"💵 قیمت لحظه‌ای: {current_price:,.2f} دلار\n"
-                f"📊 شاخص قدرت (RSI): {rsi:.1f}\n"
-                f"━━━━━━━━━━━━━━\n"
-                f"🎯 نتیجه پیش‌بینی: {status}\n\n"
-                f"💡 راهنما: {note}")
+# تابع اسکنر خودکار بازار
+async def market_scanner(context: ContextTypes.DEFAULT_TYPE):
+    global USER_ID
+    if USER_ID is None: return
 
-    except Exception as e:
-        return f"⚠️ خطای سیستمی: {str(e)}"
+    for symbol in COIN_MAP.keys():
+        res = analyze_logic(symbol)
+        if res and res['score'] >= 3: # فقط سیگنال‌های خیلی قوی
+            msg = (f"🔔 **هشدار فرصت خرید (طلایی)**\n\n"
+                   f"💎 ارز: {symbol}\n"
+                   f"💵 قیمت: {res['price']:,.2f}\n"
+                   f"🎯 هدف سود: {res['tp']:,.2f}\n"
+                   f"🛑 حد ضرر: {res['sl']:,.2f}\n"
+                   f"📈 شاخص RSI: {res['rsi']:.1f}\n\n"
+                   f"⚠️ همین حالا بررسی کنید!")
+            await context.bot.send_message(chat_id=USER_ID, text=msg, parse_mode='Markdown')
+        await asyncio.sleep(2) # وقفه کوتاه برای جلوگیری از مسدودی
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global USER_ID
+    USER_ID = update.effective_chat.id
     keyboard = [[InlineKeyboardButton(coin, callback_data=coin)] for coin in COIN_MAP.keys()]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        "🚀 **به ربات تریدر هوشمند خوش آمدید**\n\n"
-        "این ربات با تحلیل چندین لایه تکنیکال، ارزهای پرسود را پیش‌بینی می‌کند.\n"
-        "ارز مورد نظر را از لیست انتخاب کنید:", 
-        reply_markup=reply_markup, parse_mode='Markdown'
+        "⚡️ **ربات شکارچی سود فعال شد!**\n\n"
+        "۱. از لیست زیر برای تحلیل دستی استفاده کنید.\n"
+        "۲. سیستم اسکنر خودکار فعال شد؛ هر وقت موقعیت عالی پیدا کنم بهتون خبر میدم.",
+        reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown'
     )
 
 async def handle_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    symbol = query.data
     await query.answer()
-    await query.edit_message_text(text=f"🔬 در حال پردازش لایه‌های قیمتی {symbol}...")
-    result = get_smart_prediction(symbol)
-    keyboard = [[InlineKeyboardButton("🔄 آپدیت تحلیل", callback_data=symbol)], [InlineKeyboardButton("🔙 لیست ارزها", callback_data="back")]]
-    await query.edit_message_text(text=result, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    res = analyze_logic(query.data)
+    if not res:
+        await query.edit_message_text("⚠️ خطا در دریافت اطلاعات.")
+        return
+
+    status = "🟢 خرید" if res['score'] >= 2 else "🔴 فروش/خطر" if res['score'] <= -2 else "🟡 خنثی"
+    result_text = (f"✨ **تحلیل {query.data}**\n\n"
+                   f"💰 قیمت: {res['price']:,.2f}\n"
+                   f"🎯 نتیجه: {status}\n"
+                   f"🚀 TP: {res['tp']:,.2f}\n"
+                   f"🛑 SL: {res['sl']:,.2f}\n")
+    
+    keyboard = [[InlineKeyboardButton("🔄 آپدیت", callback_data=query.data)], [InlineKeyboardButton("🔙 لیست", callback_data="back")]]
+    await query.edit_message_text(text=result_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 async def back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     keyboard = [[InlineKeyboardButton(coin, callback_data=coin)] for coin in COIN_MAP.keys()]
-    await update.callback_query.edit_message_text("ارز مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await query.edit_message_text("ارز مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 if __name__ == '__main__':
     app = Application.builder().token(TELEGRAM_TOKEN).build()
+    
+    # تنظیم اجرای اسکنر هر ۳۰ دقیقه یکبار
+    job_queue = app.job_queue
+    job_queue.run_repeating(market_scanner, interval=1800, first=10)
+    
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(back, pattern="back"))
     app.add_handler(CallbackQueryHandler(handle_selection))
-    print("Bot is Running...")
+    
+    print("Super Bot is Scanning Market...")
     app.run_polling()
     
