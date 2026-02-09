@@ -3,6 +3,3 @@ pandas
 pandas_ta
 yfinance
 matplotlib
-python-dotenv
-pymongo
-dnspython
