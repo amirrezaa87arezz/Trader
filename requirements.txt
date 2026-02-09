@@ -1,5 +1,6 @@
-python-telegram-bot==21.10
+python-telegram-bot[job-queue]==21.10
 pandas
 pandas_ta
 yfinance
+matplotlib
 python-dotenv
