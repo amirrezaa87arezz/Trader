@@ -31,35 +31,28 @@ COIN_MAP = {
     'AVAX/USDT': 'AVAX-USD', 'NOT/USDT': 'NOT-USD', 'WIF/USDT': 'WIF-USD'
 }
 
-# --- هسته تحلیلگر Alpha-Quant (فوق قدرتمند) ---
+# --- هسته تحلیلگر Alpha-Quant ---
 async def fetch_and_analyze(symbol):
     ticker = COIN_MAP.get(symbol)
-    for i in range(3): # ۳ بار تلاش مجدد در صورت خطا
+    for i in range(3):
         try:
             df = yf.download(ticker, period="15d", interval="1h", progress=False, timeout=15)
             if not df.empty and len(df) > 30:
                 if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-                
-                # اندیکاتورهای فوق حرفه‌ای
                 df['EMA_200'] = ta.ema(df['Close'], length=200)
                 df['RSI'] = ta.rsi(df['Close'], length=14)
                 macd = ta.macd(df['Close'])
                 df = pd.concat([df, macd], axis=1)
-                
                 last = df.iloc[-1]
                 price = float(last['Close'])
-                
-                # منطق پیش‌بینی با درصد برد بالا
                 score = 50
-                if price > last['EMA_200']: score += 20 # روند صعودی کلی
-                if last['MACDh_12_26_9'] > 0: score += 15 # مومنتوم مثبت
-                if last['RSI'] < 40: score += 15 # خرید در قیمت مناسب
-                
+                if price > last['EMA_200']: score += 20
+                if last['MACDh_12_26_9'] > 0: score += 15
+                if last['RSI'] < 40: score += 15
                 win_rate = max(min(score, 99), 35)
                 atr = ta.atr(df['High'], df['Low'], df['Close'], length=14).iloc[-1]
                 tp = price + (atr * 3)
                 sl = price - (atr * 1.5)
-                
                 return {'symbol': symbol, 'price': price, 'win_p': win_rate, 'tp': tp, 'sl': sl, 'df': df}
         except:
             await asyncio.sleep(1)
@@ -71,7 +64,6 @@ def create_chart(df, symbol):
     plt.style.use('dark_background')
     plt.plot(df.index, df['Close'], color='#00ffcc', linewidth=2, label='Price')
     plt.plot(df.index, df['EMA_200'], color='#ff3366', linestyle='--', alpha=0.7, label='EMA 200')
-    plt.fill_between(df.index, df['Close'].min(), df['Close'].max(), color='cyan', alpha=0.03)
     plt.title(f"QUANT ANALYSIS: {symbol}")
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -83,7 +75,6 @@ def create_chart(df, symbol):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = str(update.effective_user.id)
     conn = sqlite3.connect(DB_PATH); user = conn.execute("SELECT expiry, role FROM users WHERE user_id=?", (uid,)).fetchone(); conn.close()
-    
     is_admin = int(uid) == ADMIN_ID or (user and user[1] == 'admin')
     if is_admin:
         kb = [['➕ ساخت لایسنس', '👥 مدیریت کاربران'], ['💰 لیست ارزها', '🔥 پیشنهاد طلایی']]
@@ -98,19 +89,28 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     uid = str(update.effective_user.id)
 
+    # اولویت اول: ساخت لایسنس برای ادمین
+    if 'ساخت لایسنس' in text and int(uid) == ADMIN_ID:
+        k = f"VIP-{uuid.uuid4().hex[:6].upper()}"
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("INSERT INTO licenses VALUES (?, ?)", (k, 30))
+        conn.commit()
+        conn.close()
+        await update.message.reply_text(f"✅ لایسنس ۳۰ روزه با موفقیت ساخته شد:\n\n`{k}`", parse_mode='Markdown')
+        return
+
+    # بقیه دستورات
     if text == '🔥 پیشنهاد طلایی':
-        msg = await update.message.reply_text("🔎 در حال اسکن عمیق بازار با الگوریتم Alpha-Quant...")
-        # اسکن مستقیم روی ۳ ارز لیدر بازار
+        msg = await update.message.reply_text("🔎 در حال اسکن عمیق بازار...")
         results = []
         for coin in ['BTC/USDT', 'SOL/USDT', 'ETH/USDT']:
             res = await fetch_and_analyze(coin)
             if res: results.append(res)
-        
         if results:
             best = max(results, key=lambda x: x['win_p'])
-            await msg.edit_text(f"🌟 **پیشنهاد طلایی شناسایی شد:**\n\n🪙 ارز: {best['symbol']}\n📈 درصد اطمینان: `{best['win_p']}%` \n💰 قیمت: `{best['price']:,.4f}`\n\nبرای جزئیات بیشتر از 'لیست ارزها' استفاده کنید.")
+            await msg.edit_text(f"🌟 **پیشنهاد طلایی شناسایی شد:**\n\n🪙 ارز: {best['symbol']}\n📈 درصد اطمینان: `{best['win_p']}%` \n💰 قیمت: `{best['price']:,.4f}`")
         else:
-            await msg.edit_text("❌ خطا در اتصال به شبکه صرافی. ۵ دقیقه دیگر تلاش کنید.")
+            await msg.edit_text("❌ خطا در اتصال به صرافی.")
         return
 
     if text == '👥 مدیریت کاربران' and int(uid) == ADMIN_ID:
@@ -144,15 +144,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn = sqlite3.connect(DB_PATH); conn.execute("DELETE FROM users WHERE user_id=?", (uid,)); conn.commit(); conn.close()
         await query.edit_message_text("✅ کاربر حذف شد.")
         return
-
-    await query.answer("🧠 در حال تحلیل کوانتومی...")
+    await query.answer("🧠 در حال تحلیل...")
     res = await fetch_and_analyze(query.data)
     if res:
         chart = create_chart(res['df'], res['symbol'])
-        cap = f"👑 **سیگنال اختصاصی {res['symbol']}**\n\n🎯 شانس برد: `{res['win_p']}%` \n💵 ورود: `{res['price']:,.4f}`\n\n✅ حد سود: `{res['tp']:,.4f}`\n❌ حد ضرر: `{res['sl']:,.4f}`"
+        cap = f"👑 **سیگنال {res['symbol']}**\n\n🎯 شانس برد: `{res['win_p']}%` \n💵 ورود: `{res['price']:,.4f}`\n\n✅ حد سود: `{res['tp']:,.4f}`\n❌ حد ضرر: `{res['sl']:,.4f}`"
         await context.bot.send_photo(query.message.chat_id, chart, caption=cap, parse_mode='Markdown')
     else:
-        await query.message.reply_text("❌ اختلال در دیتای صرافی. دوباره روی دکمه بزنید.")
+        await query.message.reply_text("❌ خطا در اتصال.")
 
 if __name__ == '__main__':
     init_db()
