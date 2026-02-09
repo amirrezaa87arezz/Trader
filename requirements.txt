@@ -1,6 +1,5 @@
-python-telegram-bot==20.8
+python-telegram-bot==21.10
 pandas
 pandas_ta
 yfinance
 python-dotenv
-APScheduler==3.10.4
