@@ -3,55 +3,78 @@ import uuid
 import time
 import logging
 import io
+import sqlite3
 import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
 import matplotlib.pyplot as plt
-import pymongo
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 # --- تنظیمات لاگ ---
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# --- تنظیمات اصلی ---
+# --- تنظیمات اصلی (توکن و آیدی ادمین) ---
 TELEGRAM_TOKEN = "8154056569:AAFdWvFe7YzrAmAIV4BgsBnq20VSCmA_TZ0"
 ADMIN_ID = 5993860770
+DB_PATH = "/app/data/bot_database.db"  # مسیر متصل به Volume ریلی‌وی
 
-# اتصال اصلاح شده با یوزرنیم و پسورد جدید شما
-MONGO_URI = "mongodb+srv://Amirrezarezvani25_db_user:elxK3j6PuUq0wsdo@cluster0.on87bad.mongodb.net/?appName=Cluster0"
+# --- مدیریت دیتابیس داخلی (SQLite) ---
+def init_db():
+    # ساخت پوشه data اگر وجود نداشته باشد
+    if not os.path.exists("/app/data"):
+        os.makedirs("/app/data")
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    # جدول لایسنس‌های استفاده نشده
+    c.execute('''CREATE TABLE IF NOT EXISTS licenses (key TEXT PRIMARY KEY, days INTEGER)''')
+    # جدول کاربرانی که لایسنس فعال کرده‌اند
+    c.execute('''CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, expiry REAL)''')
+    conn.commit()
+    conn.close()
 
-# --- اتصال به دیتابیس ابری ---
-try:
-    client = pymongo.MongoClient(MONGO_URI)
-    db_mongo = client["TraderBotDB"]
-    collection = db_mongo["MainData"]
-    logging.info("✅ Connected to MongoDB Atlas!")
-except Exception as e:
-    logging.error(f"❌ Database Connection Error: {e}")
+def add_license(key, days):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO licenses VALUES (?, ?)", (key, days))
+    conn.commit()
+    conn.close()
 
-def get_db():
-    try:
-        data = collection.find_one({"_id": "global_storage"})
-        if not data:
-            data = {"_id": "global_storage", "active_licenses": {}, "user_access": {}}
-            collection.insert_one(data)
-        return data
-    except Exception as e:
-        logging.error(f"❌ Error fetching DB: {e}")
-        return {"active_licenses": {}, "user_access": {}}
+def use_license(key, user_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT days FROM licenses WHERE key=?", (key,))
+    res = c.fetchone()
+    if res:
+        days = res[0]
+        expiry = time.time() + (days * 86400)
+        c.execute("DELETE FROM licenses WHERE key=?", (key,))
+        c.execute("INSERT OR REPLACE INTO users VALUES (?, ?)", (user_id, expiry))
+        conn.commit()
+        conn.close()
+        return days
+    conn.close()
+    return None
 
-def save_to_mongo(new_data):
-    collection.replace_one({"_id": "global_storage"}, new_data)
+def check_access(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT expiry FROM users WHERE user_id=?", (user_id,))
+    res = c.fetchone()
+    conn.close()
+    if res and res[0] > time.time():
+        return True
+    return False
 
 # --- لیست ارزها ---
 COIN_MAP = {
     'BTC/USDT': 'BTC-USD', 'ETH/USDT': 'ETH-USD', 'SOL/USDT': 'SOL-USD',
     'BNB/USDT': 'BNB-USD', 'DOGE/USDT': 'DOGE-USD', 'NEAR/USDT': 'NEAR-USD',
-    'PEPE/USDT': 'PEPE-USD', 'LINK/USDT': 'LINK-USD', 'AVAX/USDT': 'AVAX-USD'
+    'PEPE/USDT': 'PEPE-USD', 'AVAX/USDT': 'AVAX-USD', 'LINK/USDT': 'LINK-USD'
 }
 
-# --- موتور تحلیل تکنیکال ---
+# --- موتور تحلیل هوشمند ---
 def analyze_logic(symbol):
     try:
         ticker = COIN_MAP.get(symbol)
@@ -64,12 +87,10 @@ def analyze_logic(symbol):
         df['ATR'] = ta.atr(df['High'], df['Low'], df['Close'], length=14)
         
         last = df.iloc[-1]
-        price = float(last['Close'])
-        rsi = float(last['RSI'])
-        atr = float(last['ATR'])
+        price, rsi, atr = float(last['Close']), float(last['RSI']), float(last['ATR'])
         
         score = 50
-        if price > last['EMA_20']: score += 15
+        if price > float(last['EMA_20']): score += 15
         if rsi < 35: score += 20
         if rsi > 65: score -= 20
         
@@ -90,79 +111,70 @@ def analyze_logic(symbol):
         return {'symbol': symbol, 'price': price, 'win_p': win_p, 'tp': tp, 'sl': sl}, buf
     except: return None, None
 
-# --- هندلرها ---
+# --- هندلرهای تلگرام ---
 user_states = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    db = get_db()
     
     if int(user_id) == ADMIN_ID:
-        menu = [['➕ ساخت لایسنس', '📊 آمار کل'], ['💰 لیست ارزها', '🔥 پیشنهاد طلایی']]
-        await update.message.reply_text("💎 مدیریت خوش آمدید. دیتابیس ابری متصل شد.", 
+        menu = [['➕ ساخت لایسنس', '📊 آمار کاربران'], ['💰 لیست ارزها', '🎓 راهنما']]
+        await update.message.reply_text("💎 مدیر عزیز خوش آمدید.\nسیستم ذخیره‌سازی Volume فعال است.", 
                                        reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True))
         return
 
-    now = time.time()
-    if user_id in db.get("user_access", {}) and db["user_access"][user_id] > now:
-        menu = [['💰 لیست ارزها', '🔥 پیشنهاد طلایی'], ['🎓 راهنمای ترید مبتدی', '📊 وضعیت']]
-        await update.message.reply_text("🚀 دستیار هوشمند ترید آماده است!", reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True))
+    if check_access(user_id):
+        menu = [['💰 لیست ارزها', '🔥 پیشنهاد طلایی'], ['🎓 راهنما', '⏳ اعتبار باقی‌مانده']]
+        await update.message.reply_text("🚀 دستیار ترید آماده است!", reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True))
     else:
-        await update.message.reply_text("🔐 لایسنس خود را وارد کنید:", reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text("🔐 برای استفاده از ربات، لطفاً لایسنس خود را وارد کنید (شروع با -VIP):", 
+                                       reply_markup=ReplyKeyboardRemove())
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     text = update.message.text
-    db = get_db()
 
+    # بخش ادمین
     if int(user_id) == ADMIN_ID:
         if text == '➕ ساخت لایسنس':
-            await update.message.reply_text("تعداد روز اعتبار:")
-            user_states[user_id] = 'wait'
+            await update.message.reply_text("مدت اعتبار لایسنس را به عدد (روز) وارد کنید:")
+            user_states[user_id] = 'waiting_days'
             return
-        elif user_states.get(user_id) == 'wait' and text.isdigit():
-            key = f"VIP-{str(uuid.uuid4())[:8].upper()}"
-            db["active_licenses"][key] = int(text)
-            save_to_mongo(db)
+        elif user_states.get(user_id) == 'waiting_days' and text.isdigit():
+            new_key = f"VIP-{uuid.uuid4().hex[:8].upper()}"
+            add_license(new_key, int(text))
             user_states[user_id] = None
-            await update.message.reply_text(f"✅ لایسنس ابری ساخته شد:\n`{key}`", parse_mode='Markdown')
+            await update.message.reply_text(f"✅ لایسنس ساخته شد:\n\n`{new_key}`\n\nاعتبار: {text} روز", parse_mode='Markdown')
             return
 
+    # فعال‌سازی لایسنس
     if text.startswith("VIP-"):
-        if text in db.get("active_licenses", {}):
-            days = db["active_licenses"].pop(text)
-            db["user_access"][user_id] = time.time() + (days * 86400)
-            save_to_mongo(db)
-            await update.message.reply_text(f"✅ اشتراک {days} روزه فعال شد! /start را بزنید.")
+        days = use_license(text, user_id)
+        if days:
+            await update.message.reply_text(f"✅ لایسنس با موفقیت فعال شد!\nمدت: {days} روز\nحالا /start را بزنید.")
         else:
-            await update.message.reply_text("❌ لایسنس اشتباه یا منقضی است.")
+            await update.message.reply_text("❌ لایسنس اشتباه است یا قبلاً استفاده شده.")
         return
 
-    if user_id in db.get("user_access", {}) and db["user_access"][user_id] > time.time():
+    # منوی کاربری (فقط برای افراد دارای دسترسی)
+    if check_access(user_id):
         if text == '💰 لیست ارزها':
             keys = list(COIN_MAP.keys())
             markup = InlineKeyboardMarkup([[InlineKeyboardButton(k, callback_data=k) for k in keys[i:i+2]] for i in range(0, len(keys), 2)])
-            await update.message.reply_text("انتخاب ارز:", reply_markup=markup)
-        
-        elif text == '🎓 راهنمای ترید مبتدی':
-            guide = (
-                "📖 **راهنمای ترید برای صفر کیلومترها:**\n\n"
-                "1️⃣ **سیگنال بگیرید:** ارزی را انتخاب کنید که شانس بالای ۷۰٪ دارد.\n"
-                "2️⃣ **ورود در صرافی:** قیمت لحظه‌ای را ببینید و خرید بزنید.\n"
-                "3️⃣ **استاپ‌لاس (حیاتی):** عدد SL ربات را حتماً در صرافی وارد کنید تا اگر بازار ریخت، پولتان صفر نشود.\n"
-                "4️⃣ **تارگت (TP):** عدد سود را هم ست کنید تا ربات صرافی خودکار در سود برایتان بفروشد.\n"
-                "5️⃣ **اهرم (Leverage):** هرگز از **3x** بالاتر نروید!"
-            )
-            await update.message.reply_text(guide, parse_mode='Markdown')
+            await update.message.reply_text("جفت‌ارز مورد نظر برای تحلیل AI را انتخاب کنید:", reply_markup=markup)
+        elif text == '🎓 راهنما':
+            await update.message.reply_text("1. ارز را انتخاب کن.\n2. طبق TP و SL ربات خرید بزن.\n3. لوریج را روی 3x بگذار.")
 
 async def handle_inline(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer("در حال تحلیل...")
     res, chart = analyze_logic(query.data)
     if res:
-        cap = f"📊 **{res['symbol']}**\n🚀 شانس: `{res['win_p']}%` \n🎯 هدف: `{res['tp']:,.4f}`\n🛑 ضرر: `{res['sl']:,.4f}`"
+        cap = f"📊 **سیگنال {res['symbol']}**\n\n🚀 احتمال برد: `{res['win_p']}%` \n💵 قیمت فعلی: `{res['price']:,.4f}`\n🎯 حد سود (TP): `{res['tp']:,.4f}`\n🛑 حد ضرر (SL): `{res['sl']:,.4f}`"
         await context.bot.send_photo(update.effective_chat.id, chart, caption=cap, parse_mode='Markdown')
 
 if __name__ == '__main__':
+    init_db()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler('start', start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
