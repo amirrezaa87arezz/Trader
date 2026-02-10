@@ -3,3 +3,4 @@ pandas==2.1.4
 yfinance==0.2.33
 pandas-ta==0.3.14b0
 matplotlib==3.7.3
+numpy==1.24.3
