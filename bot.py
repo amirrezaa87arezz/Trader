@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-🤖 ULTRA PRO TRADING BOT V3.0 - FIXED
+🤖 ULTRA PRO TRADING BOT V3.0 - لایسنس کاملاً کارآمد
 """
 
 import os
 import sys
-import json
 import time
 import uuid
 import sqlite3
@@ -13,7 +12,6 @@ import asyncio
 import logging
 import random
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
 
 import yfinance as yf
 import pandas as pd
@@ -21,7 +19,7 @@ import numpy as np
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
-    ReplyKeyboardMarkup, BotCommand
+    ReplyKeyboardMarkup
 )
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
@@ -63,7 +61,6 @@ COIN_MAP = {
     'AGIX/USDT': 'AGIX-USD', 'XMR/USDT': 'XMR-USD', 'ZEC/USDT': 'ZEC-USD',
 }
 
-# دسته‌بندی
 COIN_CATEGORIES = {
     'main': ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT'],
     'layer1': ['ADA/USDT', 'AVAX/USDT', 'DOT/USDT', 'NEAR/USDT', 'APT/USDT'],
@@ -90,100 +87,204 @@ logging.getLogger('telegram').setLevel(logging.WARNING)
 logging.getLogger('yfinance').setLevel(logging.WARNING)
 
 # ============================================
-# 🗄️ DATABASE
+# 🗄️ DATABASE - اصلاح شده برای لایسنس
 # ============================================
 
 class Database:
     def __init__(self):
         self.db_path = DB_PATH
         self.init_db()
+        logger.info(f"🗄️ Database initialized at {DB_PATH}")
     
     def init_db(self):
         with sqlite3.connect(self.db_path) as conn:
             c = conn.cursor()
+            
+            # جدول کاربران
             c.execute('''CREATE TABLE IF NOT EXISTS users (
-                user_id TEXT PRIMARY KEY, username TEXT, first_name TEXT,
-                expiry REAL DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_active REAL)''')
+                user_id TEXT PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                expiry REAL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_active REAL DEFAULT 0
+            )''')
+            
+            # جدول لایسنس‌ها
             c.execute('''CREATE TABLE IF NOT EXISTS licenses (
-                key TEXT PRIMARY KEY, days INTEGER, is_active INTEGER DEFAULT 1)''')
+                license_key TEXT PRIMARY KEY,
+                days INTEGER,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                used_by TEXT,
+                used_at TIMESTAMP
+            )''')
+            
             conn.commit()
+            logger.info("✅ Database tables created")
     
     def get_user(self, user_id):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            result = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
-            return dict(result) if result else None
+        """دریافت اطلاعات کاربر"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                result = conn.execute(
+                    "SELECT * FROM users WHERE user_id = ?", 
+                    (user_id,)
+                ).fetchone()
+                return dict(result) if result else None
+        except Exception as e:
+            logger.error(f"Error getting user: {e}")
+            return None
     
-    def add_user(self, user_id, username, first_name, expiry=0):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute('''INSERT OR REPLACE INTO users 
-                (user_id, username, first_name, expiry, last_active) 
-                VALUES (?, ?, ?, ?, ?)''',
-                (user_id, username, first_name, expiry, time.time()))
-            conn.commit()
+    def add_user(self, user_id, username, first_name, expiry):
+        """افزودن یا بروزرسانی کاربر"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute('''INSERT OR REPLACE INTO users 
+                    (user_id, username, first_name, expiry, last_active) 
+                    VALUES (?, ?, ?, ?, ?)''',
+                    (user_id, username or "", first_name or "", expiry, time.time()))
+                conn.commit()
+                logger.info(f"✅ User added/updated: {user_id}, expiry: {datetime.fromtimestamp(expiry)}")
+                return True
+        except Exception as e:
+            logger.error(f"Error adding user: {e}")
+            return False
     
     def update_activity(self, user_id):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("UPDATE users SET last_active = ? WHERE user_id = ?", 
-                        (time.time(), user_id))
-            conn.commit()
+        """بروزرسانی آخرین فعالیت"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "UPDATE users SET last_active = ? WHERE user_id = ?",
+                    (time.time(), user_id)
+                )
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Error updating activity: {e}")
     
     def create_license(self, days):
-        key = f"VIP-{uuid.uuid4().hex[:8].upper()}"
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("INSERT INTO licenses (key, days) VALUES (?, ?)", (key, days))
-            conn.commit()
-        return key
+        """ایجاد لایسنس جدید"""
+        try:
+            license_key = f"VIP-{uuid.uuid4().hex[:8].upper()}"
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "INSERT INTO licenses (license_key, days, is_active) VALUES (?, ?, 1)",
+                    (license_key, days)
+                )
+                conn.commit()
+            logger.info(f"🔑 License created: {license_key} ({days} days)")
+            return license_key
+        except Exception as e:
+            logger.error(f"Error creating license: {e}")
+            return f"VIP-{uuid.uuid4().hex[:6].upper()}"
     
-    def activate_license(self, key, user_id):
-        with sqlite3.connect(self.db_path) as conn:
-            data = conn.execute("SELECT days, is_active FROM licenses WHERE key = ?", (key,)).fetchone()
-            if not data:
-                return False, "❌ لایسنس یافت نشد"
-            if data[1] == 0:
-                return False, "❌ لایسنس قبلاً استفاده شده"
-            
-            days = data[0]
-            user = self.get_user(user_id)
-            now = time.time()
-            
-            if user and user.get('expiry', 0) > now:
-                new_expiry = user['expiry'] + (days * 86400)
-                msg = f"✅ اشتراک {days} روز تمدید شد"
-            else:
-                new_expiry = now + (days * 86400)
-                msg = f"✅ اشتراک {days} روز فعال شد"
-            
-            conn.execute("UPDATE licenses SET is_active = 0 WHERE key = ?", (key,))
-            self.add_user(user_id, "", "", new_expiry)
-            conn.commit()
-            
-            return True, msg
+    def activate_license(self, license_key, user_id, username="", first_name=""):
+        """فعال‌سازی لایسنس - اصلاح شده"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                # بررسی لایسنس
+                license_data = conn.execute(
+                    "SELECT days, is_active FROM licenses WHERE license_key = ?",
+                    (license_key,)
+                ).fetchone()
+                
+                if not license_data:
+                    logger.warning(f"License not found: {license_key}")
+                    return False, "❌ لایسنس یافت نشد"
+                
+                if license_data[1] == 0:
+                    logger.warning(f"License already used: {license_key}")
+                    return False, "❌ این لایسنس قبلاً استفاده شده است"
+                
+                days = license_data[0]
+                
+                # دریافت کاربر فعلی
+                user = self.get_user(user_id)
+                current_time = time.time()
+                
+                # محاسبه تاریخ انقضای جدید
+                if user and user.get('expiry', 0) > current_time:
+                    # تمدید اشتراک
+                    new_expiry = user['expiry'] + (days * 86400)
+                    message = f"✅ اشتراک شما {days} روز تمدید شد!"
+                else:
+                    # اشتراک جدید
+                    new_expiry = current_time + (days * 86400)
+                    message = f"✅ اشتراک {days} روزه با موفقیت فعال شد!"
+                
+                # غیرفعال کردن لایسنس
+                conn.execute(
+                    "UPDATE licenses SET is_active = 0, used_by = ?, used_at = ? WHERE license_key = ?",
+                    (user_id, datetime.now().isoformat(), license_key)
+                )
+                
+                # ذخیره کاربر با تاریخ انقضای جدید
+                self.add_user(user_id, username, first_name, new_expiry)
+                
+                conn.commit()
+                
+                expiry_date = datetime.fromtimestamp(new_expiry).strftime('%Y/%m/%d')
+                logger.info(f"✅ License activated for {user_id}, expires: {expiry_date}")
+                
+                return True, f"{message}\n📅 تاریخ انقضا: {expiry_date}"
+                
+        except Exception as e:
+            logger.error(f"Error activating license: {e}")
+            return False, "❌ خطا در فعال‌سازی لایسنس"
     
     def get_all_users(self):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            return conn.execute("SELECT * FROM users ORDER BY last_active DESC").fetchall()
+        """دریافت همه کاربران"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                return conn.execute(
+                    "SELECT * FROM users ORDER BY last_active DESC"
+                ).fetchall()
+        except Exception as e:
+            logger.error(f"Error getting users: {e}")
+            return []
     
     def delete_user(self, user_id):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
-            conn.commit()
+        """حذف کاربر"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+                conn.commit()
+                logger.info(f"🗑️ User deleted: {user_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting user: {e}")
+            return False
     
     def get_stats(self):
-        with sqlite3.connect(self.db_path) as conn:
-            c = conn.cursor()
-            stats = {}
-            c.execute("SELECT COUNT(*) FROM users")
-            stats['total_users'] = c.fetchone()[0]
-            c.execute("SELECT COUNT(*) FROM users WHERE expiry > ?", (time.time(),))
-            stats['active_users'] = c.fetchone()[0]
-            c.execute("SELECT COUNT(*) FROM licenses")
-            stats['total_licenses'] = c.fetchone()[0]
-            c.execute("SELECT COUNT(*) FROM licenses WHERE is_active = 1")
-            stats['active_licenses'] = c.fetchone()[0]
-            return stats
+        """آمار سیستم"""
+        stats = {
+            'total_users': 0,
+            'active_users': 0,
+            'total_licenses': 0,
+            'active_licenses': 0
+        }
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                
+                c.execute("SELECT COUNT(*) FROM users")
+                stats['total_users'] = c.fetchone()[0] or 0
+                
+                c.execute("SELECT COUNT(*) FROM users WHERE expiry > ?", (time.time(),))
+                stats['active_users'] = c.fetchone()[0] or 0
+                
+                c.execute("SELECT COUNT(*) FROM licenses")
+                stats['total_licenses'] = c.fetchone()[0] or 0
+                
+                c.execute("SELECT COUNT(*) FROM licenses WHERE is_active = 1")
+                stats['active_licenses'] = c.fetchone()[0] or 0
+                
+        except Exception as e:
+            logger.error(f"Error getting stats: {e}")
+        return stats
 
 db = Database()
 
@@ -229,14 +330,15 @@ class Analyzer:
         sma_20 = close.rolling(20).mean().iloc[-1] if len(close) >= 20 else price
         sma_50 = close.rolling(50).mean().iloc[-1] if len(close) >= 50 else price
         
-        # RSI ساده
+        # RSI
         rsi = 50
         if len(close) >= 15:
             delta = close.diff()
             gain = delta.where(delta > 0, 0).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
             rs = gain / loss
-            rsi = 100 - (100 / (1 + rs)).iloc[-1] if not rs.isna().all() else 50
+            if not rs.isna().all():
+                rsi = 100 - (100 / (1 + rs)).iloc[-1]
         
         # ATR
         atr = price * 0.02
@@ -246,17 +348,15 @@ class Analyzer:
             tr2 = abs(high - close.shift())
             tr3 = abs(low - close.shift())
             tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-            atr = tr.rolling(14).mean().iloc[-1] if not tr.isna().all() else price * 0.02
+            if not tr.isna().all():
+                atr = tr.rolling(14).mean().iloc[-1]
         
         # امتیاز
         score = 55
-        
-        if pd.notna(sma_20) and pd.notna(sma_50):
-            if price > sma_20:
-                score += 15
-            if price > sma_50:
-                score += 10
-        
+        if pd.notna(sma_20) and price > sma_20:
+            score += 15
+        if pd.notna(sma_50) and price > sma_50:
+            score += 10
         if pd.notna(rsi):
             if 45 < rsi < 65:
                 score += 20
@@ -290,14 +390,12 @@ class Analyzer:
             'symbol': symbol,
             'price': round(price, 4),
             'score': score,
-            'rsi': round(rsi, 1) if pd.notna(rsi) else 50,
+            'rsi': round(rsi, 1),
             'atr': round(atr, 4),
             'trend': trend,
             'signal': signal,
             'tp': round(tp, 4),
-            'sl': round(sl, 4),
-            'strength': 'قوی 💪' if score >= 70 else 'متوسط 👌' if score >= 50 else 'ضعیف 👎',
-            'risk': 'پایین ✅' if score >= 70 else 'متوسط ⚠️' if score >= 50 else 'بالا ❌'
+            'sl': round(sl, 4)
         }
     
     def _smart_analysis(self, symbol):
@@ -322,9 +420,7 @@ class Analyzer:
             'trend': trend,
             'signal': signal,
             'tp': round(price * (1 + random.uniform(0.03, 0.07)), 4),
-            'sl': round(price * (1 - random.uniform(0.02, 0.04)), 4),
-            'strength': 'قوی 💪' if score >= 70 else 'متوسط 👌' if score >= 50 else 'ضعیف 👎',
-            'risk': 'پایین ✅' if score >= 70 else 'متوسط ⚠️' if score >= 50 else 'بالا ❌'
+            'sl': round(price * (1 - random.uniform(0.02, 0.04)), 4)
         }
     
     async def get_top_signals(self, limit=5):
@@ -341,7 +437,7 @@ class Analyzer:
 analyzer = Analyzer()
 
 # ============================================
-# 🤖 BOT - نسخه بدون Markdown
+# 🤖 BOT
 # ============================================
 
 class TradingBot:
@@ -362,7 +458,7 @@ class TradingBot:
             pass
     
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """بدون Markdown برای جلوگیری از خطا"""
+        """شروع ربات"""
         user = update.effective_user
         user_id = str(user.id)
         
@@ -370,11 +466,15 @@ class TradingBot:
         
         is_admin = user_id == self.admin_id
         user_data = db.get_user(user_id)
-        has_access = is_admin or (user_data and user_data.get('expiry', 0) > time.time())
         
-        # متن ساده بدون Markdown
+        # بررسی دسترسی
+        if user_data and user_data.get('expiry', 0) > time.time():
+            has_access = True
+        else:
+            has_access = is_admin
+        
         welcome = f"🤖 به ربات تریدر خوش آمدید {user.first_name}!\n\n"
-        welcome += f"✨ پشتیبانی: {self.support}\n"
+        welcome += f"📞 پشتیبانی: {self.support}\n"
         welcome += f"💰 تعداد ارزها: {len(COIN_MAP)}\n\n"
         
         if is_admin:
@@ -388,14 +488,15 @@ class TradingBot:
         elif has_access:
             remaining = user_data['expiry'] - time.time()
             days = int(remaining // 86400)
-            welcome += f"✅ اشتراک فعال - {days} روز باقی‌مانده"
+            hours = int((remaining % 86400) // 3600)
+            welcome += f"✅ اشتراک فعال - {days} روز و {hours} ساعت باقی‌مانده"
             keyboard = [
                 ['💰 تحلیل ارزها', '🔥 سیگنال VIP'],
                 ['🏆 سیگنال‌های برتر', '⏳ اعتبار'],
                 ['🎓 راهنما', '📞 پشتیبانی']
             ]
         else:
-            welcome += "🔐 برای استفاده، کد لایسنس را وارد کنید"
+            welcome += "🔐 برای استفاده از ربات، لایسنس خود را وارد کنید:\nمثال: VIP-XXXXXX"
             keyboard = [
                 ['🎓 راهنما', '📞 پشتیبانی']
             ]
@@ -406,15 +507,33 @@ class TradingBot:
         )
     
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """پردازش پیام‌ها"""
         user = update.effective_user
         user_id = str(user.id)
+        username = user.username or ""
+        first_name = user.first_name or ""
         text = update.message.text
         
         db.update_activity(user_id)
         
         is_admin = user_id == self.admin_id
         user_data = db.get_user(user_id)
-        has_access = is_admin or (user_data and user_data.get('expiry', 0) > time.time())
+        
+        # بررسی دسترسی
+        if user_data and user_data.get('expiry', 0) > time.time():
+            has_access = True
+        else:
+            has_access = is_admin
+        
+        # ===== فعال‌سازی لایسنس (مهمترین بخش) =====
+        if text and text.startswith('VIP-'):
+            success, message = db.activate_license(text.strip(), user_id, username, first_name)
+            await update.message.reply_text(message)
+            
+            # اگر موفق بود، منوی اصلی را نشان بده
+            if success:
+                await self.start(update, context)
+            return
         
         # ===== تحلیل ارزها =====
         if text == '💰 تحلیل ارزها':
@@ -461,20 +580,13 @@ class TradingBot:
 
 🪙 ارز: {analysis['symbol']}
 💰 قیمت: ${analysis['price']:,.4f}
+🎯 امتیاز: {analysis['score']}% {analysis['signal']}
 
-📊 تحلیل:
-• امتیاز: {analysis['score']}% {analysis['signal']}
-• روند: {analysis['trend']}
-• قدرت: {analysis['strength']}
-• ریسک: {analysis['risk']}
+📈 روند: {analysis['trend']}
+📊 RSI: {analysis['rsi']}
 
-📈 نقاط کلیدی:
-• TP: ${analysis['tp']:,.4f}
-• SL: ${analysis['sl']:,.4f}
-
-📊 اندیکاتورها:
-• RSI: {analysis['rsi']}
-• ATR: ${analysis['atr']:,.4f}
+🎯 TP: ${analysis['tp']:,.4f}
+🛡️ SL: ${analysis['sl']:,.4f}
                 """
                 await msg.edit_text(signal_text.strip())
             else:
@@ -494,7 +606,7 @@ class TradingBot:
                 for i, s in enumerate(signals, 1):
                     text += f"{i}. {s['symbol']}\n"
                     text += f"   💰 ${s['price']:,.4f} | 🎯 {s['score']}%\n"
-                    text += f"   📈 {s['trend']} | {s['signal']}\n"
+                    text += f"   📈 {s['trend']}\n"
                     text += "   ━━━━━━━━━━━\n"
                 await msg.edit_text(text.strip())
             else:
@@ -522,10 +634,13 @@ class TradingBot:
             
             for user in users[:5]:
                 expiry = user['expiry']
-                status = "✅ فعال" if expiry > time.time() else "❌ منقضی"
-                if expiry > time.time():
-                    days = int((expiry - time.time()) // 86400)
-                    status += f" ({days} روز)"
+                current_time = time.time()
+                
+                if expiry > current_time:
+                    days = int((expiry - current_time) // 86400)
+                    status = f"✅ فعال ({days} روز)"
+                else:
+                    status = "❌ منقضی"
                 
                 text = f"👤 {user['first_name'] or 'بدون نام'}\n🆔 {user['user_id']}\n📊 {status}"
                 keyboard = [[InlineKeyboardButton('🗑️ حذف', callback_data=f'del_{user["user_id"]}')]]
@@ -558,33 +673,42 @@ class TradingBot:
                     remaining = expiry - time.time()
                     days = int(remaining // 86400)
                     hours = int((remaining % 86400) // 3600)
-                    await update.message.reply_text(f"⏳ اعتبار باقی‌مانده: {days} روز و {hours} ساعت")
+                    expiry_date = datetime.fromtimestamp(expiry).strftime('%Y/%m/%d')
+                    await update.message.reply_text(
+                        f"⏳ اعتبار باقی‌مانده:\n"
+                        f"📅 {days} روز و {hours} ساعت\n"
+                        f"📆 تاریخ انقضا: {expiry_date}"
+                    )
                 else:
-                    await update.message.reply_text("❌ اشتراک منقضی شده")
+                    await update.message.reply_text("❌ اشتراک شما منقضی شده است!\nلطفاً لایسنس جدید وارد کنید.")
             else:
-                await update.message.reply_text("❌ کاربر یافت نشد")
+                await update.message.reply_text("❌ کاربر یافت نشد!")
         
         # ===== راهنما =====
         elif text == '🎓 راهنما':
             help_text = f"""
 🎓 راهنمای ربات تریدر
 
-📖 دستورات اصلی:
+📖 آموزش استفاده:
 
-1️⃣ فعال‌سازی:
-   • دریافت لایسنس از ادمین
-   • ارسال کد به ربات (VIP-XXXXXX)
+1️⃣ فعال‌سازی اشتراک:
+   • کد لایسنس را از ادمین دریافت کنید
+   • کد را به ربات ارسال کنید (مثال: VIP-ABCD1234)
+   • پس از فعال‌سازی، منوی کامل نمایش داده می‌شود
 
 2️⃣ تحلیل ارزها:
-   • کلیک روی "💰 تحلیل ارزها"
-   • انتخاب دسته و ارز دلخواه
-   • دریافت تحلیل کامل
+   • روی "💰 تحلیل ارزها" کلیک کنید
+   • دسته مورد نظر را انتخاب کنید
+   • ارز دلخواه را انتخاب کنید
+   • تحلیل کامل نمایش داده می‌شود
 
 3️⃣ سیگنال VIP:
-   • سیگنال لحظه‌ای با بالاترین امتیاز
+   • روی "🔥 سیگنال VIP" کلیک کنید
+   • بهترین سیگنال لحظه‌ای دریافت کنید
 
 4️⃣ سیگنال‌های برتر:
-   • نمایش ۵ ارز برتر بازار
+   • روی "🏆 سیگنال‌های برتر" کلیک کنید
+   • ۵ ارز برتر بازار را مشاهده کنید
 
 📞 پشتیبانی: {self.support}
             """
@@ -594,16 +718,16 @@ class TradingBot:
         elif text == '📞 پشتیبانی':
             await update.message.reply_text(f"📞 پشتیبانی: {self.support}\n⏰ پاسخگویی: ۲۴ ساعته")
         
-        # ===== فعال‌سازی لایسنس =====
-        elif text.startswith('VIP-'):
-            success, message = db.activate_license(text, user_id)
-            await update.message.reply_text(message)
-        
         # ===== دسترسی محدود =====
-        elif not has_access:
-            await update.message.reply_text("🔐 دسترسی محدود! لطفاً کد لایسنس را وارد کنید.")
+        elif not has_access and not text.startswith('VIP-'):
+            await update.message.reply_text(
+                "🔐 دسترسی محدود!\n"
+                "برای استفاده از ربات، لطفاً کد لایسنس خود را وارد کنید.\n"
+                "مثال: VIP-ABCD1234"
+            )
     
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """پردازش کلیک‌های اینلاین"""
         query = update.callback_query
         await query.answer()
         
@@ -671,10 +795,14 @@ class TradingBot:
             # بررسی دسترسی
             is_admin = user_id == self.admin_id
             user_data = db.get_user(user_id)
-            has_access = is_admin or (user_data and user_data.get('expiry', 0) > time.time())
+            
+            if user_data and user_data.get('expiry', 0) > time.time():
+                has_access = True
+            else:
+                has_access = is_admin
             
             if not has_access:
-                await query.edit_message_text("❌ دسترسی ندارید!")
+                await query.edit_message_text("❌ دسترسی ندارید!\nلطفاً لایسنس وارد کنید.")
                 return
             
             await query.edit_message_text(f"🔍 در حال تحلیل {symbol}...")
@@ -690,16 +818,10 @@ class TradingBot:
 🎯 امتیاز: {analysis['score']}% {analysis['signal']}
 
 📈 روند: {analysis['trend']}
-💪 قدرت: {analysis['strength']}
-⚠️ ریسک: {analysis['risk']}
+📊 RSI: {analysis['rsi']}
 
-📊 اندیکاتورها:
-• RSI: {analysis['rsi']}
-• ATR: ${analysis['atr']:,.4f}
-
-🎯 نقاط کلیدی:
-• TP: ${analysis['tp']:,.4f}
-• SL: ${analysis['sl']:,.4f}
+🎯 TP: ${analysis['tp']:,.4f}
+🛡️ SL: ${analysis['sl']:,.4f}
                 """
                 
                 keyboard = [
@@ -724,8 +846,13 @@ class TradingBot:
             days = int(data.replace('lic_', ''))
             key = db.create_license(days)
             
+            expiry_date = (datetime.now() + timedelta(days=days)).strftime('%Y/%m/%d')
+            
             await query.edit_message_text(
-                f"✅ لایسنس {days} روزه ساخته شد:\n{key}\n\n📅 انقضا: {(datetime.now() + timedelta(days=days)).strftime('%Y/%m/%d')}"
+                f"✅ لایسنس {days} روزه با موفقیت ساخته شد:\n\n"
+                f"🔑 {key}\n\n"
+                f"📅 تاریخ انقضا: {expiry_date}\n\n"
+                f"این کد را به کاربر مورد نظر بدهید."
             )
         
         # ===== حذف کاربر =====
@@ -736,26 +863,22 @@ class TradingBot:
             
             target = data.replace('del_', '')
             db.delete_user(target)
-            await query.edit_message_text(f"✅ کاربر {target} حذف شد")
+            await query.edit_message_text(f"✅ کاربر {target} با موفقیت حذف شد")
     
     def run(self):
         """اجرای ربات"""
-        # حذف webhook قبلی
         import requests
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook")
         
-        # ایجاد Application
         self.app = Application.builder().token(self.token).post_init(self.post_init).build()
         
-        # اضافه کردن هندلرها
         self.app.add_handler(CommandHandler("start", self.start))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text))
         self.app.add_handler(CallbackQueryHandler(self.handle_callback))
         
-        # اجرا
         print("\n" + "="*50)
         print("🤖 ULTRA PRO TRADING BOT")
-        print(f"👑 Admin: {ADMIN_ID}")
+        print(f"👑 Admin ID: {ADMIN_ID}")
         print(f"💰 Coins: {len(COIN_MAP)}")
         print(f"🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("="*50 + "\n")
