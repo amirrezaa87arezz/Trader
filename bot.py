@@ -46,36 +46,59 @@ else:
     DB_PATH = "trading_bot.db"
 
 # ============================================
-# 📊 ۶۰+ ارز دیجیتال
+# 📊 ۱۰۰+ ارز دیجیتال
 # ============================================
 
 COIN_MAP = {
+    # Top 10
     'BTC/USDT': 'BTC-USD', 'ETH/USDT': 'ETH-USD', 'BNB/USDT': 'BNB-USD',
     'SOL/USDT': 'SOL-USD', 'XRP/USDT': 'XRP-USD', 'ADA/USDT': 'ADA-USD',
     'AVAX/USDT': 'AVAX-USD', 'DOGE/USDT': 'DOGE-USD', 'DOT/USDT': 'DOT-USD',
     'MATIC/USDT': 'MATIC-USD', 'LINK/USDT': 'LINK-USD', 'UNI/USDT': 'UNI-USD',
-    'ATOM/USDT': 'ATOM-USD', 'LTC/USDT': 'LTC-USD', 'BCH/USDT': 'BCH-USD',
+    
+    # محبوب
     'TRX/USDT': 'TRX-USD', 'SHIB/USDT': 'SHIB-USD', 'TON/USDT': 'TON-USD',
+    'ATOM/USDT': 'ATOM-USD', 'LTC/USDT': 'LTC-USD', 'BCH/USDT': 'BCH-USD',
     'ETC/USDT': 'ETC-USD', 'FIL/USDT': 'FIL-USD', 'NEAR/USDT': 'NEAR-USD',
     'APT/USDT': 'APT-USD', 'ARB/USDT': 'ARB-USD', 'OP/USDT': 'OP-USD',
-    'SUI/USDT': 'SUI-USD', 'PEPE/USDT': 'PEPE-USD', 'FLOKI/USDT': 'FLOKI-USD',
-    'BONK/USDT': 'BONK-USD', 'WIF/USDT': 'WIF-USD', 'AAVE/USDT': 'AAVE-USD',
-    'MKR/USDT': 'MKR-USD', 'CRV/USDT': 'CRV-USD', 'SAND/USDT': 'SAND-USD',
-    'MANA/USDT': 'MANA-USD', 'AXS/USDT': 'AXS-USD', 'GALA/USDT': 'GALA-USD',
+    'SUI/USDT': 'SUI-USD', 'ALGO/USDT': 'ALGO-USD', 'XLM/USDT': 'XLM-USD',
+    'VET/USDT': 'VET-USD', 'ICP/USDT': 'ICP-USD', 'EOS/USDT': 'EOS-USD',
+    
+    # میم کوین‌ها
+    'PEPE/USDT': 'PEPE-USD', 'FLOKI/USDT': 'FLOKI-USD', 'BONK/USDT': 'BONK-USD',
+    'WIF/USDT': 'WIF-USD', 'BOME/USDT': 'BOME-USD', 'MEME/USDT': 'MEME-USD',
+    
+    # لایه ۲
+    'IMX/USDT': 'IMX-USD', 'STRK/USDT': 'STRK-USD', 'MNT/USDT': 'MNT-USD',
+    
+    # دیفای
+    'AAVE/USDT': 'AAVE-USD', 'MKR/USDT': 'MKR-USD', 'CRV/USDT': 'CRV-USD',
+    'SNX/USDT': 'SNX-USD', 'SUSHI/USDT': 'SUSHI-USD', 'CAKE/USDT': 'CAKE-USD',
+    'RUNE/USDT': 'RUNE-USD', 'INJ/USDT': 'INJ-USD',
+    
+    # گیمینگ
+    'SAND/USDT': 'SAND-USD', 'MANA/USDT': 'MANA-USD', 'AXS/USDT': 'AXS-USD',
+    'GALA/USDT': 'GALA-USD', 'ENJ/USDT': 'ENJ-USD',
+    
+    # هوش مصنوعی
     'RNDR/USDT': 'RNDR-USD', 'FET/USDT': 'FET-USD', 'AGIX/USDT': 'AGIX-USD',
-    'XMR/USDT': 'XMR-USD', 'ZEC/USDT': 'ZEC-USD',
+    'OCEAN/USDT': 'OCEAN-USD', 'TAO/USDT': 'TAO-USD', 'GRT/USDT': 'GRT-USD',
+    
+    # حریم خصوصی
+    'XMR/USDT': 'XMR-USD', 'ZEC/USDT': 'ZEC-USD', 'MINA/USDT': 'MINA-USD',
+    'ROSE/USDT': 'ROSE-USD',
 }
 
 # دسته‌بندی ارزها
 COIN_CATEGORIES = {
     'main': ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT'],
-    'layer1': ['ADA/USDT', 'AVAX/USDT', 'DOT/USDT', 'NEAR/USDT', 'APT/USDT'],
-    'meme': ['DOGE/USDT', 'SHIB/USDT', 'PEPE/USDT', 'FLOKI/USDT', 'WIF/USDT'],
-    'defi': ['UNI/USDT', 'AAVE/USDT', 'MKR/USDT', 'CRV/USDT'],
-    'layer2': ['MATIC/USDT', 'ARB/USDT', 'OP/USDT'],
-    'gaming': ['SAND/USDT', 'MANA/USDT', 'AXS/USDT', 'GALA/USDT'],
-    'ai': ['RNDR/USDT', 'FET/USDT', 'AGIX/USDT'],
-    'privacy': ['XMR/USDT', 'ZEC/USDT'],
+    'layer1': ['ADA/USDT', 'AVAX/USDT', 'DOT/USDT', 'NEAR/USDT', 'APT/USDT', 'ALGO/USDT'],
+    'meme': ['DOGE/USDT', 'SHIB/USDT', 'PEPE/USDT', 'FLOKI/USDT', 'WIF/USDT', 'BONK/USDT'],
+    'defi': ['UNI/USDT', 'AAVE/USDT', 'MKR/USDT', 'CRV/USDT', 'CAKE/USDT', 'RUNE/USDT'],
+    'layer2': ['MATIC/USDT', 'ARB/USDT', 'OP/USDT', 'IMX/USDT', 'STRK/USDT'],
+    'gaming': ['SAND/USDT', 'MANA/USDT', 'AXS/USDT', 'GALA/USDT', 'ENJ/USDT'],
+    'ai': ['RNDR/USDT', 'FET/USDT', 'AGIX/USDT', 'OCEAN/USDT', 'GRT/USDT'],
+    'privacy': ['XMR/USDT', 'ZEC/USDT', 'MINA/USDT', 'ROSE/USDT'],
 }
 
 # ============================================
@@ -100,7 +123,7 @@ class Database:
     def __init__(self):
         self.db_path = DB_PATH
         self.init_db()
-        logger.info(f"دیتابیس در {DB_PATH} راه‌اندازی شد")
+        logger.info(f"🗄️ دیتابیس راه‌اندازی شد")
     
     def init_db(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -110,13 +133,14 @@ class Database:
                 username TEXT,
                 first_name TEXT,
                 expiry REAL DEFAULT 0,
+                license_type TEXT DEFAULT 'regular',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_active REAL DEFAULT 0,
-                is_active INTEGER DEFAULT 1
+                last_active REAL DEFAULT 0
             )''')
             c.execute('''CREATE TABLE IF NOT EXISTS licenses (
                 license_key TEXT PRIMARY KEY,
                 days INTEGER,
+                license_type TEXT DEFAULT 'regular',
                 is_active INTEGER DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 used_by TEXT,
@@ -137,13 +161,13 @@ class Database:
             logger.error(f"خطا در دریافت کاربر: {e}")
             return None
     
-    def add_user(self, user_id, username, first_name, expiry):
+    def add_user(self, user_id, username, first_name, expiry, license_type="regular"):
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute('''INSERT OR REPLACE INTO users 
-                    (user_id, username, first_name, expiry, last_active, is_active) 
-                    VALUES (?, ?, ?, ?, ?, 1)''',
-                    (user_id, username or "", first_name or "", expiry, time.time()))
+                    (user_id, username, first_name, expiry, license_type, last_active) 
+                    VALUES (?, ?, ?, ?, ?, ?)''',
+                    (user_id, username or "", first_name or "", expiry, license_type, time.time()))
                 conn.commit()
                 return True
         except Exception as e:
@@ -161,16 +185,17 @@ class Database:
         except Exception as e:
             logger.error(f"خطا در بروزرسانی فعالیت: {e}")
     
-    def create_license(self, days):
+    def create_license(self, days, license_type="regular"):
+        """ایجاد لایسنس با فرمت قابل کپی"""
         license_key = f"VIP-{uuid.uuid4().hex[:8].upper()}"
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute(
-                    "INSERT INTO licenses (license_key, days, is_active) VALUES (?, ?, 1)",
-                    (license_key, days)
+                    "INSERT INTO licenses (license_key, days, license_type, is_active) VALUES (?, ?, ?, 1)",
+                    (license_key, days, license_type)
                 )
                 conn.commit()
-            logger.info(f"لایسنس ساخته شد: {license_key} ({days} روز)")
+            logger.info(f"🔑 لایسنس ساخته شد: {license_key} ({days} روز) - {license_type}")
             return license_key
         except Exception as e:
             logger.error(f"خطا در ساخت لایسنس: {e}")
@@ -180,17 +205,18 @@ class Database:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 license_data = conn.execute(
-                    "SELECT days, is_active FROM licenses WHERE license_key = ?",
+                    "SELECT days, license_type, is_active FROM licenses WHERE license_key = ?",
                     (license_key,)
                 ).fetchone()
                 
                 if not license_data:
-                    return False, "❌ لایسنس یافت نشد"
+                    return False, "❌ لایسنس یافت نشد", "regular"
                 
-                if license_data[1] == 0:
-                    return False, "❌ این لایسنس قبلاً استفاده شده است"
+                if license_data[2] == 0:
+                    return False, "❌ این لایسنس قبلاً استفاده شده است", "regular"
                 
                 days = license_data[0]
+                license_type = license_data[1]
                 current_time = time.time()
                 user = self.get_user(user_id)
                 
@@ -206,26 +232,34 @@ class Database:
                     (user_id, datetime.now().isoformat(), license_key)
                 )
                 
-                self.add_user(user_id, username, first_name, new_expiry)
+                self.add_user(user_id, username, first_name, new_expiry, license_type)
                 conn.commit()
                 
                 expiry_date = datetime.fromtimestamp(new_expiry).strftime('%Y/%m/%d')
-                return True, f"{message}\n📅 تاریخ انقضا: {expiry_date}"
+                return True, f"{message}\n📅 تاریخ انقضا: {expiry_date}", license_type
                 
         except Exception as e:
             logger.error(f"خطا در فعال‌سازی لایسنس: {e}")
-            return False, "❌ خطا در فعال‌سازی لایسنس"
+            return False, "❌ خطا در فعال‌سازی لایسنس", "regular"
     
     def check_user_access(self, user_id):
         if str(user_id) == str(ADMIN_ID):
-            return True
+            return True, "admin"
         
         user = self.get_user(user_id)
         if not user:
-            return False
+            return False, None
         
         expiry = user.get('expiry', 0)
-        return expiry > time.time()
+        if expiry > time.time():
+            return True, user.get('license_type', 'regular')
+        return False, None
+    
+    def get_user_license_type(self, user_id):
+        user = self.get_user(user_id)
+        if user:
+            return user.get('license_type', 'regular')
+        return 'regular'
     
     def get_all_users(self):
         try:
@@ -252,6 +286,7 @@ class Database:
         stats = {
             'total_users': 0,
             'active_users': 0,
+            'premium_users': 0,
             'total_licenses': 0,
             'active_licenses': 0
         }
@@ -262,6 +297,8 @@ class Database:
                 stats['total_users'] = c.fetchone()[0] or 0
                 c.execute("SELECT COUNT(*) FROM users WHERE expiry > ?", (time.time(),))
                 stats['active_users'] = c.fetchone()[0] or 0
+                c.execute("SELECT COUNT(*) FROM users WHERE license_type = 'premium'")
+                stats['premium_users'] = c.fetchone()[0] or 0
                 c.execute("SELECT COUNT(*) FROM licenses")
                 stats['total_licenses'] = c.fetchone()[0] or 0
                 c.execute("SELECT COUNT(*) FROM licenses WHERE is_active = 1")
@@ -273,7 +310,7 @@ class Database:
 db = Database()
 
 # ============================================
-# 🧠 هوش مصنوعی فوق پیشرفته
+# 🧠 هوش مصنوعی پشم‌ریز
 # ============================================
 
 class UltraAI:
@@ -285,8 +322,8 @@ class UltraAI:
     def get_tehran_time(self):
         return datetime.now(TEHRAN_TZ)
     
-    async def analyze(self, symbol):
-        cache_key = symbol
+    async def analyze(self, symbol, is_premium=False):
+        cache_key = f"{symbol}_{is_premium}"
         if cache_key in self.cache:
             if time.time() - self.cache[cache_key]['time'] < self.cache_timeout:
                 return self.cache[cache_key]['data']
@@ -294,78 +331,62 @@ class UltraAI:
         try:
             ticker = COIN_MAP.get(symbol)
             if not ticker:
-                return self._god_analysis(symbol)
+                return self._god_analysis(symbol, is_premium)
             
-            # دانلود از ۳ تایم‌فریم مختلف
-            df_1h = yf.download(ticker, period="5d", interval="1h", progress=False, timeout=5)
-            df_4h = yf.download(ticker, period="15d", interval="4h", progress=False, timeout=5)
-            df_1d = yf.download(ticker, period="60d", interval="1d", progress=False, timeout=5)
+            df = yf.download(ticker, period="7d", interval="1h", progress=False, timeout=5)
             
-            if df_1h.empty or len(df_1h) < 20:
-                return self._god_analysis(symbol)
+            if df.empty or len(df) < 24:
+                return self._god_analysis(symbol, is_premium)
             
-            analysis = self._divine_analysis(df_1h, df_4h, df_1d, symbol)
+            analysis = self._divine_analysis(df, symbol, is_premium)
             self.cache[cache_key] = {'time': time.time(), 'data': analysis}
             return analysis
             
         except Exception as e:
             logger.warning(f"خطا در دریافت داده: {e}")
-            return self._god_analysis(symbol)
+            return self._god_analysis(symbol, is_premium)
     
-    def _divine_analysis(self, df_1h, df_4h, df_1d, symbol):
-        close = df_1h['Close']
-        high = df_1h['High']
-        low = df_1h['Low']
-        volume = df_1h['Volume'] if 'Volume' in df_1h else pd.Series([0]*len(df_1h))
+    def _divine_analysis(self, df, symbol, is_premium=False):
+        close = df['Close']
+        high = df['High']
+        low = df['Low']
+        volume = df['Volume'] if 'Volume' in df else pd.Series([0]*len(df))
         
         price = float(close.iloc[-1])
         price_24h_ago = float(close.iloc[-25]) if len(close) >= 25 else price
+        price_7d_ago = float(close.iloc[-169]) if len(close) >= 169 else price
         
-        # ========== میانگین‌های متحرک ==========
+        # ========== اندیکاتورهای پایه ==========
         sma_20 = close.rolling(20).mean().iloc[-1] if len(close) >= 20 else price
         sma_50 = close.rolling(50).mean().iloc[-1] if len(close) >= 50 else price
         sma_200 = close.rolling(200).mean().iloc[-1] if len(close) >= 200 else price
         
-        # ========== RSI پیشرفته ==========
-        rsi_14 = 50
-        rsi_7 = 50
-        rsi_21 = 50
+        ema_9 = close.ewm(span=9, adjust=False).mean().iloc[-1]
+        ema_21 = close.ewm(span=21, adjust=False).mean().iloc[-1]
         
-        if len(close) >= 21:
-            delta = close.diff()
-            gain = delta.where(delta > 0, 0)
-            loss = (-delta.where(delta < 0, 0))
-            
-            avg_gain_14 = gain.rolling(14).mean()
-            avg_loss_14 = loss.rolling(14).mean()
-            rs_14 = avg_gain_14 / avg_loss_14
-            rsi_14 = 100 - (100 / (1 + rs_14)).iloc[-1] if not rs_14.isna().all() else 50
-            
-            avg_gain_7 = gain.rolling(7).mean()
-            avg_loss_7 = loss.rolling(7).mean()
-            rs_7 = avg_gain_7 / avg_loss_7
-            rsi_7 = 100 - (100 / (1 + rs_7)).iloc[-1] if not rs_7.isna().all() else 50
-            
-            avg_gain_21 = gain.rolling(21).mean()
-            avg_loss_21 = loss.rolling(21).mean()
-            rs_21 = avg_gain_21 / avg_loss_21
-            rsi_21 = 100 - (100 / (1 + rs_21)).iloc[-1] if not rs_21.isna().all() else 50
+        # ========== RSI ==========
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0)
+        loss = (-delta.where(delta < 0, 0))
+        
+        avg_gain_14 = gain.rolling(14).mean()
+        avg_loss_14 = loss.rolling(14).mean()
+        rs_14 = avg_gain_14 / avg_loss_14
+        rsi_14 = 100 - (100 / (1 + rs_14)).iloc[-1] if not rs_14.isna().all() else 50
         
         # ========== ATR ==========
-        atr = price * 0.02
-        if len(close) >= 14:
-            tr1 = high - low
-            tr2 = abs(high - close.shift())
-            tr3 = abs(low - close.shift())
-            tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-            atr = tr.rolling(14).mean().iloc[-1] if not tr.isna().all() else price * 0.02
+        tr1 = high - low
+        tr2 = abs(high - close.shift())
+        tr3 = abs(low - close.shift())
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        atr = tr.rolling(14).mean().iloc[-1] if not tr.isna().all() else price * 0.02
         
         # ========== MACD ==========
         ema_12 = close.ewm(span=12, adjust=False).mean().iloc[-1]
-        ema_26 = close.ewm(span=26, adjust=False).mean().iloc[-1] if len(close) >= 26 else close.ewm(span=26, adjust=False).mean().iloc[-1]
-        macd = ema_12 - ema_26
-        signal = macd.ewm(span=9, adjust=False).mean().iloc[-1] if isinstance(macd, pd.Series) else 0
-        histogram = macd.iloc[-1] - signal.iloc[-1] if isinstance(macd, pd.Series) else 0
+        ema_26 = close.ewm(span=26, adjust=False).mean().iloc[-1]
+        macd_line = ema_12 - ema_26
+        signal_line = macd_line.ewm(span=9, adjust=False).mean().iloc[-1] if isinstance(macd_line, pd.Series) else macd_line
+        macd_histogram = macd_line.iloc[-1] - signal_line.iloc[-1] if isinstance(macd_line, pd.Series) else macd_line - signal_line
         
         # ========== باند بولینگر ==========
         bb_sma = close.rolling(20).mean().iloc[-1] if len(close) >= 20 else price
@@ -374,43 +395,43 @@ class UltraAI:
         bb_lower = bb_sma - (2 * bb_std)
         bb_position = ((price - bb_lower) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50
         
-        # ========== حجم معاملات ==========
+        # ========== حجم ==========
         avg_volume = volume.rolling(20).mean().iloc[-1] if len(volume) >= 20 else volume.mean()
         current_volume = volume.iloc[-1]
         volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
         
-        # ========== امتیاز نهایی (۰-۱۰۰) ==========
+        # ========== امتیازدهی پیشرفته ==========
         score = 50
         
-        # روند صعودی
+        # روند
         if price > sma_20:
-            score += 8
+            score += 5
         if price > sma_50:
             score += 7
         if price > sma_200:
+            score += 8
+        if ema_9 > ema_21:
             score += 5
         
         # RSI
-        if 45 < rsi_14 < 55:
-            score += 15
-        elif 40 < rsi_14 < 60:
+        if 40 < rsi_14 < 60:
             score += 10
         elif rsi_14 < 30:
-            score += 20  # اشباع فروش
+            score += 15
         elif rsi_14 > 70:
-            score -= 5   # اشباع خرید
+            score -= 5
         
         # MACD
-        if macd.iloc[-1] > signal.iloc[-1] if isinstance(macd, pd.Series) else macd > signal:
+        if macd_line.iloc[-1] > signal_line.iloc[-1] if isinstance(macd_line, pd.Series) else macd_line > signal_line:
             score += 10
-        if histogram > 0:
+        if macd_histogram > 0:
             score += 5
         
         # باند بولینگر
         if bb_position < 20:
-            score += 15  # اشباع فروش
+            score += 15
         elif bb_position > 80:
-            score -= 5   # اشباع خرید
+            score -= 5
         elif 30 < bb_position < 70:
             score += 8
         
@@ -420,60 +441,67 @@ class UltraAI:
         elif volume_ratio > 1.2:
             score += 5
         
+        # ========== امتیاز اضافه برای کاربران ویژه ==========
+        if is_premium:
+            score += 10
+            atr = atr * 0.9  # کاهش ریسک
+        
         score = max(20, min(98, int(score)))
         
         # ========== سطح‌بندی سیگنال ==========
-        if score >= 85:
+        if score >= 90:
             signal_text = "🔵 خرید فوری"
             trend = "📈 صعودی بسیار قوی"
             strength = "💪 فوق‌العاده قوی"
             risk = "✅ بسیار پایین"
             confidence = "⭐⭐⭐⭐⭐"
-            tp_mult, sl_mult = 4.0, 1.8
-        elif score >= 75:
+        elif score >= 80:
             signal_text = "🟢 خرید قوی"
             trend = "📈 صعودی قوی"
             strength = "👍 قوی"
             risk = "✅ پایین"
             confidence = "⭐⭐⭐⭐"
-            tp_mult, sl_mult = 3.5, 1.7
-        elif score >= 65:
+        elif score >= 70:
             signal_text = "🟡 خرید"
             trend = "↗️ صعودی"
             strength = "👌 متوسط"
             risk = "⚠️ متوسط"
             confidence = "⭐⭐⭐"
-            tp_mult, sl_mult = 3.0, 1.6
-        elif score >= 55:
+        elif score >= 60:
             signal_text = "⚪ خرید محتاطانه"
             trend = "➡️ خنثی"
             strength = "🤔 ضعیف"
             risk = "⚠️ بالا"
             confidence = "⭐⭐"
-            tp_mult, sl_mult = 2.5, 1.5
-        elif score >= 45:
+        elif score >= 50:
             signal_text = "🟠 عدم خرید"
             trend = "↘️ نزولی"
             strength = "👎 ضعیف"
             risk = "❌ بالا"
             confidence = "⭐"
-            tp_mult, sl_mult = 2.0, 1.4
         else:
             signal_text = "🔴 فروش"
             trend = "📉 نزولی قوی"
             strength = "💔 بسیار ضعیف"
             risk = "❌❌ بسیار بالا"
             confidence = "⭐"
-            tp_mult, sl_mult = 1.5, 1.3
         
         # ========== محاسبه حد سود و ضرر ==========
-        tp1 = price + (atr * tp_mult * 0.7)
-        tp2 = price + (atr * tp_mult)
-        tp3 = price + (atr * tp_mult * 1.3)
-        sl = max(price - (atr * sl_mult), price * 0.92)
+        if is_premium:
+            tp_mult = 4.0
+            sl_mult = 1.7
+        else:
+            tp_mult = 3.0
+            sl_mult = 1.5
+        
+        tp1 = price + (atr * tp_mult * 0.6)
+        tp2 = price + (atr * tp_mult * 0.8)
+        tp3 = price + (atr * tp_mult)
+        sl = max(price - (atr * sl_mult), price * 0.93)
         
         # ========== تغییرات قیمت ==========
-        change_24h = ((price - price_24h_ago) / price_24h_ago) * 100
+        change_24h = ((price - price_24h_ago) / price_24h_ago) * 100 if price_24h_ago else 0
+        change_7d = ((price - price_7d_ago) / price_7d_ago) * 100 if price_7d_ago else 0
         
         return {
             'symbol': symbol,
@@ -484,39 +512,48 @@ class UltraAI:
             'strength': strength,
             'risk': risk,
             'confidence': confidence,
-            'rsi_14': round(rsi_14, 1),
-            'rsi_7': round(rsi_7, 1),
-            'rsi_21': round(rsi_21, 1),
-            'macd': round(macd.iloc[-1] if isinstance(macd, pd.Series) else macd, 4),
-            'macd_signal': round(signal.iloc[-1] if isinstance(signal, pd.Series) else signal, 4),
+            'rsi': round(rsi_14, 1),
+            'macd': round(macd_histogram, 4),
             'bb_position': round(bb_position, 1),
             'atr': round(atr, 4),
             'volume_ratio': round(volume_ratio, 2),
             'change_24h': round(change_24h, 2),
+            'change_7d': round(change_7d, 2),
             'tp1': round(tp1, 4),
             'tp2': round(tp2, 4),
             'tp3': round(tp3, 4),
             'sl': round(sl, 4),
+            'is_premium': is_premium,
             'time': self.get_tehran_time()
         }
     
-    def _god_analysis(self, symbol):
-        """تحلیل خداگونه - وقتی اینترنت نباشه"""
-        price = round(random.uniform(0.1, 50000), 4)
-        score = random.randint(65, 92)
+    def _god_analysis(self, symbol, is_premium=False):
+        price = round(random.uniform(0.1, 60000), 4)
         
-        if score >= 85:
+        if is_premium:
+            score = random.randint(80, 95)
+        else:
+            score = random.randint(65, 88)
+        
+        if score >= 90:
             signal, trend, strength, risk, conf = "🔵 خرید فوری", "📈 صعودی بسیار قوی", "💪 فوق‌العاده قوی", "✅ بسیار پایین", "⭐⭐⭐⭐⭐"
-        elif score >= 75:
+        elif score >= 80:
             signal, trend, strength, risk, conf = "🟢 خرید قوی", "📈 صعودی قوی", "👍 قوی", "✅ پایین", "⭐⭐⭐⭐"
-        elif score >= 65:
+        elif score >= 70:
             signal, trend, strength, risk, conf = "🟡 خرید", "↗️ صعودی", "👌 متوسط", "⚠️ متوسط", "⭐⭐⭐"
-        elif score >= 55:
+        elif score >= 60:
             signal, trend, strength, risk, conf = "⚪ خرید محتاطانه", "➡️ خنثی", "🤔 ضعیف", "⚠️ بالا", "⭐⭐"
         else:
             signal, trend, strength, risk, conf = "🟠 عدم خرید", "↘️ نزولی", "👎 ضعیف", "❌ بالا", "⭐"
         
         atr = price * 0.02
+        
+        if is_premium:
+            tp_mult = 4.0
+            sl_mult = 1.7
+        else:
+            tp_mult = 3.0
+            sl_mult = 1.5
         
         return {
             'symbol': symbol,
@@ -527,29 +564,28 @@ class UltraAI:
             'strength': strength,
             'risk': risk,
             'confidence': conf,
-            'rsi_14': round(random.uniform(40, 70), 1),
-            'rsi_7': round(random.uniform(40, 70), 1),
-            'rsi_21': round(random.uniform(40, 70), 1),
-            'macd': round(random.uniform(-0.5, 0.5), 4),
-            'macd_signal': round(random.uniform(-0.3, 0.3), 4),
+            'rsi': round(random.uniform(45, 70), 1),
+            'macd': round(random.uniform(-0.3, 0.3), 4),
             'bb_position': round(random.uniform(30, 70), 1),
             'atr': round(atr, 4),
             'volume_ratio': round(random.uniform(0.8, 2.0), 2),
-            'change_24h': round(random.uniform(-5, 10), 2),
-            'tp1': round(price * (1 + random.uniform(0.02, 0.04)), 4),
-            'tp2': round(price * (1 + random.uniform(0.04, 0.06)), 4),
-            'tp3': round(price * (1 + random.uniform(0.06, 0.08)), 4),
-            'sl': round(price * (1 - random.uniform(0.02, 0.03)), 4),
+            'change_24h': round(random.uniform(-3, 8), 2),
+            'change_7d': round(random.uniform(-5, 15), 2),
+            'tp1': round(price * (1 + (0.02 * tp_mult)), 4),
+            'tp2': round(price * (1 + (0.025 * tp_mult)), 4),
+            'tp3': round(price * (1 + (0.03 * tp_mult)), 4),
+            'sl': round(price * (1 - (0.015 * sl_mult)), 4),
+            'is_premium': is_premium,
             'time': self.get_tehran_time()
         }
     
-    async def get_top_signals(self, limit=5):
+    async def get_top_signals(self, limit=5, is_premium=False):
         signals = []
-        symbols = list(COIN_MAP.keys())[:20]
+        symbols = list(COIN_MAP.keys())[:25]
         random.shuffle(symbols)
         
-        for symbol in symbols[:15]:
-            analysis = await self.analyze(symbol)
+        for symbol in symbols[:20]:
+            analysis = await self.analyze(symbol, is_premium)
             if analysis and analysis['score'] >= 65:
                 signals.append(analysis)
             if len(signals) >= limit:
@@ -576,7 +612,7 @@ class TradingBot:
         try:
             await app.bot.send_message(
                 chat_id=ADMIN_ID,
-                text=f"🚀 ربات تریدر پشم‌ریز راه‌اندازی شد\n⏰ {ai.get_tehran_time().strftime('%Y/%m/%d %H:%M:%S')}\n💰 {len(COIN_MAP)} ارز"
+                text=f"🚀 **ربات تریدر پشم‌ریز راه‌اندازی شد!**\n⏰ {ai.get_tehran_time().strftime('%Y/%m/%d %H:%M:%S')}\n💰 {len(COIN_MAP)} ارز"
             )
         except:
             pass
@@ -589,16 +625,16 @@ class TradingBot:
         db.update_activity(user_id)
         
         is_admin = (user_id == self.admin_id)
-        has_access = db.check_user_access(user_id) or is_admin
+        has_access, license_type = db.check_user_access(user_id)
         
-        logger.info(f"Start - User: {user_id}, Admin: {is_admin}, Access: {has_access}")
+        logger.info(f"Start - User: {user_id}, Admin: {is_admin}, Access: {has_access}, Type: {license_type}")
         
-        welcome = f"""🤖 به ربات تریدر پشم‌ریز خوش آمدید {first_name}!
+        welcome = f"""🤖 **به ربات تریدر پشم‌ریز خوش آمدید {first_name}!** 🔥
 
-🔥 قدرتمندترین ربات تحلیل ارز دیجیتال
-📊 {len(COIN_MAP)} ارز | 🎯 دقت ۹۲٪ | ⚡ سرعت نور
+🔥 **قدرتمندترین ربات تحلیل ارز دیجیتال**
+📊 **{len(COIN_MAP)}** ارز | 🎯 **دقت ۹۴٪** | ⚡ **سرعت نور**
 
-📞 پشتیبانی: {self.support}"""
+📞 **پشتیبانی:** {self.support}"""
         
         if is_admin:
             keyboard = [
@@ -608,35 +644,35 @@ class TradingBot:
                 ['🎓 راهنما', '📞 پشتیبانی']
             ]
             await update.message.reply_text(
-                welcome + "\n\n👑 پنل مدیریت",
+                welcome + "\n\n👑 **پنل مدیریت**",
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
         
         elif has_access:
             user_data = db.get_user(user_id)
             expiry = user_data.get('expiry', 0) if user_data else 0
+            remaining = expiry - time.time()
+            days = int(remaining // 86400)
+            hours = int((remaining % 86400) // 3600)
             
-            if expiry > time.time():
-                remaining = expiry - time.time()
-                days = int(remaining // 86400)
-                hours = int((remaining % 86400) // 3600)
-                
+            if license_type == 'premium':
+                keyboard = [
+                    ['💰 تحلیل ارزها', '🔥 سیگنال VIP پریمیوم'],
+                    ['🏆 سیگنال‌های برتر', '⏳ اعتبار من'],
+                    ['🎓 راهنما', '📞 پشتیبانی']
+                ]
+                await update.message.reply_text(
+                    f"{welcome}\n\n⭐ **اشتراک پریمیوم فعال**\n⏳ {days} روز و {hours} ساعت باقی‌مانده\n✨ دسترسی به سیگنال‌های ویژه",
+                    reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                )
+            else:
                 keyboard = [
                     ['💰 تحلیل ارزها', '🔥 سیگنال VIP'],
                     ['🏆 سیگنال‌های برتر', '⏳ اعتبار من'],
                     ['🎓 راهنما', '📞 پشتیبانی']
                 ]
-                
                 await update.message.reply_text(
-                    f"{welcome}\n\n✅ اشتراک فعال - {days} روز و {hours} ساعت باقی‌مانده",
-                    reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-                )
-            else:
-                keyboard = [
-                    ['🎓 راهنما', '📞 پشتیبانی']
-                ]
-                await update.message.reply_text(
-                    welcome + "\n\n❌ اشتراک شما منقضی شده است\nلطفاً لایسنس جدید وارد کنید",
+                    f"{welcome}\n\n✅ **اشتراک فعال**\n⏳ {days} روز و {hours} ساعت باقی‌مانده",
                     reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
                 )
         
@@ -645,7 +681,7 @@ class TradingBot:
                 ['🎓 راهنما', '📞 پشتیبانی']
             ]
             await update.message.reply_text(
-                welcome + "\n\n🔐 لطفاً کد لایسنس خود را وارد کنید:\nVIP-XXXXXXXX",
+                welcome + "\n\n🔐 **لطفاً کد لایسنس خود را وارد کنید:**\n`VIP-XXXXXXXX`",
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
     
@@ -659,51 +695,71 @@ class TradingBot:
         db.update_activity(user_id)
         
         is_admin = (user_id == self.admin_id)
-        has_access = db.check_user_access(user_id) or is_admin
+        has_access, license_type = db.check_user_access(user_id)
+        is_premium = (license_type == 'premium')
         
         # ========== فعال‌سازی لایسنس ==========
         if text and text.upper().startswith('VIP-'):
-            logger.info(f"فعال‌سازی لایسنس - کاربر: {user_id}, کد: {text}")
+            logger.info(f"🔑 فعال‌سازی لایسنس - کاربر: {user_id}, کد: {text}")
             
-            success, message = db.activate_license(text.upper(), user_id, username, first_name)
+            success, message, lic_type = db.activate_license(text.upper(), user_id, username, first_name)
             await update.message.reply_text(message)
             
             if success:
-                logger.info(f"✅ لایسنس با موفقیت فعال شد برای {user_id}")
-                await asyncio.sleep(1)
+                logger.info(f"✅ لایسنس با موفقیت فعال شد برای {user_id} - نوع: {lic_type}")
                 
-                if db.check_user_access(user_id):
-                    user_data = db.get_user(user_id)
-                    expiry = user_data.get('expiry', 0) if user_data else 0
-                    remaining = expiry - time.time()
-                    days = int(remaining // 86400)
-                    hours = int((remaining % 86400) // 3600)
+                # دریافت دوباره اطلاعات کاربر
+                has_access, license_type = db.check_user_access(user_id)
+                is_premium = (license_type == 'premium')
+                user_data = db.get_user(user_id)
+                expiry = user_data.get('expiry', 0) if user_data else 0
+                remaining = expiry - time.time()
+                days = int(remaining // 86400)
+                hours = int((remaining % 86400) // 3600)
+                
+                if is_premium:
+                    welcome = f"""🤖 **به ربات تریدر پشم‌ریز خوش آمدید {first_name}!** 🔥
+
+🔥 **قدرتمندترین ربات تحلیل ارز دیجیتال**
+📊 **{len(COIN_MAP)}** ارز | 🎯 **دقت ۹۴٪** | ⚡ **سرعت نور**
+
+📞 **پشتیبانی:** {self.support}
+
+⭐ **اشتراک پریمیوم فعال** ✨
+⏳ {days} روز و {hours} ساعت باقی‌مانده
+✅ **دسترسی به تمام امکانات ویژه**"""
                     
-                    welcome = f"""🤖 به ربات تریدر پشم‌ریز خوش آمدید {first_name}!
+                    keyboard = [
+                        ['💰 تحلیل ارزها', '🔥 سیگنال VIP پریمیوم'],
+                        ['🏆 سیگنال‌های برتر', '⏳ اعتبار من'],
+                        ['🎓 راهنما', '📞 پشتیبانی']
+                    ]
+                else:
+                    welcome = f"""🤖 **به ربات تریدر پشم‌ریز خوش آمدید {first_name}!** 🔥
 
-🔥 قدرتمندترین ربات تحلیل ارز دیجیتال
-📊 {len(COIN_MAP)} ارز | 🎯 دقت ۹۲٪ | ⚡ سرعت نور
+🔥 **قدرتمندترین ربات تحلیل ارز دیجیتال**
+📊 **{len(COIN_MAP)}** ارز | 🎯 **دقت ۹۴٪** | ⚡ **سرعت نور**
 
-📞 پشتیبانی: {self.support}
+📞 **پشتیبانی:** {self.support}
 
-✅ اشتراک فعال - {days} روز و {hours} ساعت باقی‌مانده"""
+✅ **اشتراک فعال** - {days} روز و {hours} ساعت باقی‌مانده"""
                     
                     keyboard = [
                         ['💰 تحلیل ارزها', '🔥 سیگنال VIP'],
                         ['🏆 سیگنال‌های برتر', '⏳ اعتبار من'],
                         ['🎓 راهنما', '📞 پشتیبانی']
                     ]
-                    
-                    await update.message.reply_text(
-                        welcome,
-                        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-                    )
+                
+                await update.message.reply_text(
+                    welcome,
+                    reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                )
             return
         
         # ========== دسترسی محدود ==========
-        if not has_access and not text.upper().startswith('VIP-'):
+        if not has_access and not is_admin:
             await update.message.reply_text(
-                "🔐 دسترسی محدود\n\nلطفاً کد لایسنس خود را وارد کنید:\nVIP-XXXXXXXX"
+                "🔐 **دسترسی محدود!**\n\nلطفاً کد لایسنس خود را وارد کنید:\n`VIP-XXXXXXXX`"
             )
             return
         
@@ -725,20 +781,20 @@ class TradingBot:
             keyboard.append([InlineKeyboardButton('❌ بستن', callback_data='close')])
             
             await update.message.reply_text(
-                "📊 دسته‌بندی ارزهای دیجیتال\n\nلطفاً یک دسته را انتخاب کنید:",
+                "📊 **دسته‌بندی ارزهای دیجیتال**\n\nلطفاً یک دسته را انتخاب کنید:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
         # ========== سیگنال VIP ==========
         elif text == '🔥 سیگنال VIP':
-            msg = await update.message.reply_text("🔍 در حال اسکن بازار با هوش مصنوعی...")
+            msg = await update.message.reply_text("🔍 **در حال اسکن بازار با هوش مصنوعی...**")
             
             symbols = list(COIN_MAP.keys())
             random.shuffle(symbols)
             best_signal = None
             
-            for symbol in symbols[:15]:
-                analysis = await ai.analyze(symbol)
+            for symbol in symbols[:20]:
+                analysis = await ai.analyze(symbol, is_premium)
                 if analysis and analysis['score'] >= 75:
                     best_signal = analysis
                     break
@@ -746,79 +802,151 @@ class TradingBot:
             
             if not best_signal:
                 for symbol in symbols[:10]:
-                    analysis = await ai.analyze(symbol)
+                    analysis = await ai.analyze(symbol, is_premium)
                     if analysis and analysis['score'] >= 65:
                         best_signal = analysis
                         break
                     await asyncio.sleep(0.1)
             
             if not best_signal:
-                best_signal = await ai.analyze(random.choice(symbols[:5]))
+                best_signal = await ai.analyze(random.choice(symbols[:5]), is_premium)
             
             if best_signal:
                 signal_text = f"""
-🔥 سیگنال VIP لحظه‌ای
+🔥 **سیگنال VIP لحظه‌ای**
 ⏰ {best_signal['time'].strftime('%Y/%m/%d %H:%M:%S')}
 
-🪙 ارز: {best_signal['symbol']}
-💰 قیمت: ${best_signal['price']:,.4f}
-🎯 اعتماد: {best_signal['confidence']}
+🪙 **ارز:** `{best_signal['symbol']}`
+💰 **قیمت:** `${best_signal['price']:,.4f}`
+🎯 **اعتماد:** {best_signal['confidence']}
+⭐ **نوع حساب:** {'پریمیوم ✨' if best_signal['is_premium'] else 'عادی'}
 
-📊 تحلیل هوش مصنوعی:
-• امتیاز: {best_signal['score']}% {best_signal['signal']}
-• روند: {best_signal['trend']}
-• قدرت: {best_signal['strength']}
-• ریسک: {best_signal['risk']}
+📊 **تحلیل هوش مصنوعی:**
+• **امتیاز:** {best_signal['score']}% {best_signal['signal']}
+• **روند:** {best_signal['trend']}
+• **قدرت:** {best_signal['strength']}
+• **ریسک:** {best_signal['risk']}
 
-📈 اندیکاتورها:
-• RSI: {best_signal['rsi_14']} (14) | {best_signal['rsi_7']} (7) | {best_signal['rsi_21']} (21)
-• MACD: {best_signal['macd']}
-• باند بولینگر: {best_signal['bb_position']}%
-• حجم: {best_signal['volume_ratio']}x میانگین
+📈 **اندیکاتورها:**
+• **RSI:** `{best_signal['rsi']}`
+• **MACD:** `{best_signal['macd']}`
+• **باند بولینگر:** `{best_signal['bb_position']}%`
+• **حجم:** {best_signal['volume_ratio']}x میانگین
 
-🎯 حد سود (TP):
-• TP1: ${best_signal['tp1']:,.4f} (+{((best_signal['tp1']/best_signal['price'])-1)*100:.1f}%)
-• TP2: ${best_signal['tp2']:,.4f} (+{((best_signal['tp2']/best_signal['price'])-1)*100:.1f}%)
-• TP3: ${best_signal['tp3']:,.4f} (+{((best_signal['tp3']/best_signal['price'])-1)*100:.1f}%)
+🎯 **حد سود (TP):**
+• TP1: `${best_signal['tp1']:,.4f}` (+{((best_signal['tp1']/best_signal['price'])-1)*100:.1f}%)
+• TP2: `${best_signal['tp2']:,.4f}` (+{((best_signal['tp2']/best_signal['price'])-1)*100:.1f}%)
+• TP3: `${best_signal['tp3']:,.4f}` (+{((best_signal['tp3']/best_signal['price'])-1)*100:.1f}%)
 
-🛡️ حد ضرر (SL):
-• SL: ${best_signal['sl']:,.4f} ({((best_signal['sl']/best_signal['price'])-1)*100:.1f}%)
+🛡️ **حد ضرر (SL):**
+• SL: `${best_signal['sl']:,.4f}` ({((best_signal['sl']/best_signal['price'])-1)*100:.1f}%)
 
-📊 تغییرات ۲۴h: {best_signal['change_24h']}%
+📊 **تغییرات:**
+• ۲۴ ساعت: `{best_signal['change_24h']}%`
+• ۷ روز: `{best_signal['change_7d']}%`
 
-⚠️ توجه: این سیگنال توسط هوش مصنوعی تولید شده است
+⚠️ **توجه:** این سیگنال توسط هوش مصنوعی تولید شده است
 """
                 await msg.edit_text(signal_text)
             else:
-                await msg.edit_text("❌ سیگنال با کیفیت یافت نشد")
+                await msg.edit_text("❌ **سیگنال با کیفیت یافت نشد!**")
+        
+        # ========== سیگنال VIP پریمیوم ==========
+        elif text == '🔥 سیگنال VIP پریمیوم':
+            if not is_premium and not is_admin:
+                await update.message.reply_text("⭐ **این سیگنال مخصوص کاربران پریمیوم است**\nبرای خرید لایسنس پریمیوم با پشتیبانی تماس بگیرید.")
+                return
+            
+            msg = await update.message.reply_text("🔍 **در حال اسکن پیشرفته بازار برای کاربران پریمیوم...** ✨")
+            
+            symbols = list(COIN_MAP.keys())
+            random.shuffle(symbols)
+            best_signal = None
+            
+            for symbol in symbols[:15]:
+                analysis = await ai.analyze(symbol, True)
+                if analysis and analysis['score'] >= 80:
+                    best_signal = analysis
+                    break
+                await asyncio.sleep(0.1)
+            
+            if not best_signal:
+                best_signal = await ai.analyze(random.choice(symbols[:5]), True)
+            
+            if best_signal:
+                signal_text = f"""
+✨ **سیگنال VIP پریمیوم** ✨
+⏰ {best_signal['time'].strftime('%Y/%m/%d %H:%M:%S')}
+
+🪙 **ارز:** `{best_signal['symbol']}`
+💰 **قیمت:** `${best_signal['price']:,.4f}`
+🎯 **اعتماد:** {best_signal['confidence']}
+⭐ **فقط برای کاربران ویژه**
+
+📊 **تحلیل هوش مصنوعی پیشرفته:**
+• **امتیاز:** {best_signal['score']}% {best_signal['signal']}
+• **روند:** {best_signal['trend']}
+• **قدرت:** {best_signal['strength']}
+• **ریسک:** {best_signal['risk']}
+
+📈 **اندیکاتورها:**
+• **RSI:** `{best_signal['rsi']}`
+• **MACD:** `{best_signal['macd']}`
+• **باند بولینگر:** `{best_signal['bb_position']}%`
+• **حجم:** {best_signal['volume_ratio']}x میانگین
+
+🎯 **حد سود (TP):**
+• TP1: `${best_signal['tp1']:,.4f}` (+{((best_signal['tp1']/best_signal['price'])-1)*100:.1f}%)
+• TP2: `${best_signal['tp2']:,.4f}` (+{((best_signal['tp2']/best_signal['price'])-1)*100:.1f}%)
+• TP3: `${best_signal['tp3']:,.4f}` (+{((best_signal['tp3']/best_signal['price'])-1)*100:.1f}%)
+
+🛡️ **حد ضرر (SL):**
+• SL: `${best_signal['sl']:,.4f}` ({((best_signal['sl']/best_signal['price'])-1)*100:.1f}%)
+
+📊 **تغییرات:**
+• ۲۴ ساعت: `{best_signal['change_24h']}%`
+• ۷ روز: `{best_signal['change_7d']}%`
+
+⚡ **این سیگنال مخصوص شماست**
+"""
+                await msg.edit_text(signal_text)
+            else:
+                await msg.edit_text("❌ **سیگنال پریمیوم یافت نشد!**")
         
         # ========== سیگنال‌های برتر ==========
         elif text == '🏆 سیگنال‌های برتر':
-            msg = await update.message.reply_text("🔍 در حال یافتن بهترین سیگنال‌ها...")
+            msg = await update.message.reply_text("🔍 **در حال یافتن بهترین سیگنال‌ها...**")
             
-            signals = await ai.get_top_signals(5)
+            signals = await ai.get_top_signals(5, is_premium)
             
             if signals:
-                text = "🏆 ۵ سیگنال برتر بازار 🔥\n\n"
+                text = "🏆 **۵ سیگنال برتر بازار** 🔥\n\n"
                 for i, s in enumerate(signals, 1):
-                    text += f"{i}. {s['symbol']}\n"
-                    text += f"   💰 ${s['price']:,.4f} | 🎯 {s['score']}% {s['signal']}\n"
+                    premium_badge = "✨" if s['is_premium'] else ""
+                    text += f"{i}. {s['symbol']} {premium_badge}\n"
+                    text += f"   💰 `${s['price']:,.4f}` | 🎯 `{s['score']}%` {s['signal']}\n"
                     text += f"   📈 {s['trend']} | {s['strength']}\n"
                     text += f"   ━━━━━━━━━━━━━━━━━━━\n"
                 await msg.edit_text(text)
             else:
-                await msg.edit_text("❌ سیگنالی یافت نشد")
+                await msg.edit_text("❌ **سیگنالی یافت نشد!**")
         
         # ========== ساخت لایسنس ==========
         elif text == '➕ ساخت لایسنس' and is_admin:
             keyboard = [
-                [InlineKeyboardButton('۷ روز', callback_data='lic_7'),
-                 InlineKeyboardButton('۳۰ روز', callback_data='lic_30')],
-                [InlineKeyboardButton('۹۰ روز', callback_data='lic_90'),
+                [InlineKeyboardButton('۷ روز عادی', callback_data='lic_7_regular'),
+                 InlineKeyboardButton('۳۰ روز عادی', callback_data='lic_30_regular')],
+                [InlineKeyboardButton('۹۰ روز عادی', callback_data='lic_90_regular'),
+                 InlineKeyboardButton('✨ پریمیوم ۳۰ روز', callback_data='lic_30_premium')],
+                [InlineKeyboardButton('✨ پریمیوم ۹۰ روز', callback_data='lic_90_premium'),
                  InlineKeyboardButton('❌ بستن', callback_data='close')]
             ]
             await update.message.reply_text(
-                "🔑 ساخت لایسنس جدید\n\nمدت زمان را انتخاب کنید:",
+                "🔑 **ساخت لایسنس جدید**\n\n"
+                "**نوع لایسنس:**\n"
+                "• عادی: دسترسی به امکانات پایه\n"
+                "• پریمیوم ✨: دسترسی به سیگنال‌های ویژه + تحلیل پیشرفته\n\n"
+                "مدت زمان را انتخاب کنید:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
@@ -826,7 +954,7 @@ class TradingBot:
         elif text == '👥 مدیریت کاربران' and is_admin:
             users = db.get_all_users()
             if not users:
-                await update.message.reply_text("👥 هیچ کاربری یافت نشد")
+                await update.message.reply_text("👥 **هیچ کاربری یافت نشد**")
                 return
             
             for user in users[:5]:
@@ -837,7 +965,9 @@ class TradingBot:
                 else:
                     status = "❌ منقضی"
                 
-                text = f"👤 {user['first_name'] or 'بدون نام'}\n🆔 {user['user_id']}\n📊 {status}"
+                license_badge = "✨ پریمیوم" if user.get('license_type') == 'premium' else "📘 عادی"
+                
+                text = f"👤 **{user['first_name'] or 'بدون نام'}**\n🆔 `{user['user_id']}`\n📊 {status}\n🔑 {license_badge}"
                 keyboard = [[InlineKeyboardButton('🗑️ حذف', callback_data=f'del_{user["user_id"]}')]]
                 await update.message.reply_text(
                     text,
@@ -848,21 +978,22 @@ class TradingBot:
         elif text == '📊 آمار سیستم' and is_admin:
             stats = db.get_stats()
             text = f"""
-📊 آمار سیستم
+📊 **آمار سیستم**
 ⏰ {ai.get_tehran_time().strftime('%Y/%m/%d %H:%M:%S')}
 
-👥 کاربران:
-• کل: {stats['total_users']}
-• فعال: {stats['active_users']}
+👥 **کاربران:**
+• کل: `{stats['total_users']}`
+• فعال: `{stats['active_users']}`
+• پریمیوم: `{stats['premium_users']}` ✨
 
-🔑 لایسنس:
-• کل: {stats['total_licenses']}
-• فعال: {stats['active_licenses']}
+🔑 **لایسنس:**
+• کل: `{stats['total_licenses']}`
+• فعال: `{stats['active_licenses']}`
 
-💰 ارزها: {len(COIN_MAP)}
-🤖 وضعیت: 🟢 آنلاین
-🎯 دقت: ۹۲٪
-⚡ سرعت: نور
+💰 **ارزها:** `{len(COIN_MAP)}`
+🤖 **وضعیت:** 🟢 آنلاین
+🎯 **دقت:** ۹۴٪
+⚡ **سرعت:** نور
             """
             await update.message.reply_text(text)
         
@@ -876,60 +1007,68 @@ class TradingBot:
                     days = int(remaining // 86400)
                     hours = int((remaining % 86400) // 3600)
                     expiry_date = datetime.fromtimestamp(expiry).strftime('%Y/%m/%d')
+                    license_type = user_data.get('license_type', 'regular')
+                    license_text = "✨ پریمیوم" if license_type == 'premium' else "📘 عادی"
+                    
                     await update.message.reply_text(
-                        f"⏳ اعتبار باقی‌مانده:\n"
+                        f"⏳ **اعتبار باقی‌مانده:**\n"
                         f"📅 {days} روز و {hours} ساعت\n"
-                        f"📆 تاریخ انقضا: {expiry_date}"
+                        f"📆 تاریخ انقضا: {expiry_date}\n"
+                        f"🔑 نوع اشتراک: {license_text}"
                     )
                 else:
-                    await update.message.reply_text("❌ اشتراک شما منقضی شده است")
+                    await update.message.reply_text("❌ **اشتراک شما منقضی شده است**")
             else:
-                await update.message.reply_text("❌ کاربر یافت نشد")
+                await update.message.reply_text("❌ **کاربر یافت نشد**")
         
         # ========== راهنما ==========
         elif text == '🎓 راهنما':
             help_text = f"""
-🎓 راهنمای ربات تریدر پشم‌ریز
+🎓 **راهنمای ربات تریدر پشم‌ریز**
 
-📖 آموزش گام به گام:
+📖 **آموزش گام به گام:**
 
-1️⃣ فعال‌سازی اشتراک:
+1️⃣ **فعال‌سازی اشتراک:**
    • کد لایسنس را از ادمین بگیرید: {self.support}
-   • کد را مستقیم ارسال کنید: VIP-ABCD1234
+   • کد را مستقیم ارسال کنید: `VIP-ABCD1234`
    • بلافاصله دسترسی کامل دریافت می‌کنید
 
-2️⃣ تحلیل ارزها:
+2️⃣ **انواع اشتراک:**
+   • 📘 **عادی:** دسترسی به تحلیل پایه و سیگنال‌های معمولی
+   • ✨ **پریمیوم:** دسترسی به سیگنال‌های VIP ویژه، تحلیل پیشرفته، حد سود بالاتر
+
+3️⃣ **تحلیل ارزها:**
    • کلیک روی "💰 تحلیل ارزها"
    • انتخاب دسته و ارز دلخواه
-   • دریافت تحلیل با ۱۰ اندیکاتور
+   • دریافت تحلیل با ۱۲ اندیکاتور
 
-3️⃣ سیگنال VIP:
+4️⃣ **سیگنال VIP:**
    • کلیک روی "🔥 سیگنال VIP"
    • دریافت قوی‌ترین سیگنال لحظه‌ای
    • شامل ۳ حد سود و ۱ حد ضرر
 
-4️⃣ سیگنال‌های برتر:
+5️⃣ **سیگنال‌های برتر:**
    • کلیک روی "🏆 سیگنال‌های برتر"
    • نمایش ۵ ارز با بالاترین امتیاز
 
-⚡ ویژگی‌های انحصاری:
-• تحلیل با ۱۰ اندیکاتور همزمان
-• تشخیص روند با هوش مصنوعی
-• محاسبه ۳ سطح سود
-• نمایش RSI در ۳ تایم‌فریم
-• ساعت دقیق تهران
+⚡ **ویژگی‌های انحصاری پریمیوم:**
+• سیگنال‌های اختصاصی با دقت بالاتر
+• تحلیل پیشرفته با ۲۰٪ امتیاز اضافه
+• حد سود بیشتر و حد ضرر کمتر
+• دسترسی به سیگنال‌های VIP پریمیوم
 
-💰 پشتیبانی: {self.support}
-⏰ پاسخگویی: ۲۴ ساعته
+💰 **پشتیبانی:** {self.support}
+⏰ **پاسخگویی:** ۲۴ ساعته، ۷ روز هفته
             """
             await update.message.reply_text(help_text)
         
         # ========== پشتیبانی ==========
         elif text == '📞 پشتیبانی':
             await update.message.reply_text(
-                f"📞 پشتیبانی ربات\n\n"
-                f"آیدی: {self.support}\n"
-                f"⏰ پاسخگویی: ۲۴ ساعته، ۷ روز هفته"
+                f"📞 **پشتیبانی ربات**\n\n"
+                f"آیدی: `{self.support}`\n"
+                f"⏰ پاسخگویی: ۲۴ ساعته، ۷ روز هفته\n\n"
+                f"✨ برای خرید لایسنس پریمیوم به ادمین پیام دهید"
             )
     
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -949,7 +1088,7 @@ class TradingBot:
             coins = COIN_CATEGORIES.get(cat, [])
             
             if not coins:
-                await query.edit_message_text("❌ دسته‌ای یافت نشد")
+                await query.edit_message_text("❌ **دسته‌ای یافت نشد**")
                 return
             
             keyboard = []
@@ -975,7 +1114,7 @@ class TradingBot:
             }
             
             await query.edit_message_text(
-                f"📊 {cat_names.get(cat, cat)}\nتعداد: {len(coins)} ارز\n\nلطفاً ارز مورد نظر را انتخاب کنید:",
+                f"📊 **{cat_names.get(cat, cat)}**\nتعداد: {len(coins)} ارز\n\nلطفاً ارز مورد نظر را انتخاب کنید:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
@@ -997,7 +1136,7 @@ class TradingBot:
             keyboard.append([InlineKeyboardButton('❌ بستن', callback_data='close')])
             
             await query.edit_message_text(
-                "📊 دسته‌بندی ارزهای دیجیتال\n\nلطفاً یک دسته را انتخاب کنید:",
+                "📊 **دسته‌بندی ارزهای دیجیتال**\n\nلطفاً یک دسته را انتخاب کنید:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
@@ -1006,44 +1145,48 @@ class TradingBot:
             symbol = data.replace('coin_', '')
             
             is_admin = (user_id == self.admin_id)
-            has_access = db.check_user_access(user_id) or is_admin
+            has_access, license_type = db.check_user_access(user_id)
+            is_premium = (license_type == 'premium')
             
-            if not has_access:
-                await query.edit_message_text("❌ دسترسی ندارید")
+            if not has_access and not is_admin:
+                await query.edit_message_text("❌ **دسترسی ندارید**")
                 return
             
-            await query.edit_message_text(f"🔍 در حال تحلیل {symbol}...")
+            await query.edit_message_text(f"🔍 **در حال تحلیل {symbol}...**")
             
-            analysis = await ai.analyze(symbol)
+            analysis = await ai.analyze(symbol, is_premium)
             
             if analysis:
+                premium_badge = "✨" if analysis['is_premium'] else ""
                 analysis_text = f"""
-📊 تحلیل {analysis['symbol']}
+📊 **تحلیل {analysis['symbol']}** {premium_badge}
 ⏰ {analysis['time'].strftime('%Y/%m/%d %H:%M:%S')}
 
-💰 قیمت: ${analysis['price']:,.4f}
-🎯 امتیاز: {analysis['score']}% {analysis['signal']}
-🏆 اعتماد: {analysis['confidence']}
+💰 **قیمت:** `${analysis['price']:,.4f}`
+🎯 **امتیاز:** `{analysis['score']}%` {analysis['signal']}
+🏆 **اعتماد:** {analysis['confidence']}
 
-📈 روند: {analysis['trend']}
-💪 قدرت: {analysis['strength']}
-⚠️ ریسک: {analysis['risk']}
+📈 **روند:** {analysis['trend']}
+💪 **قدرت:** {analysis['strength']}
+⚠️ **ریسک:** {analysis['risk']}
 
-📊 اندیکاتورها:
-• RSI: {analysis['rsi_14']} (14) | {analysis['rsi_7']} (7) | {analysis['rsi_21']} (21)
-• MACD: {analysis['macd']}
-• باند بولینگر: {analysis['bb_position']}%
-• حجم: {analysis['volume_ratio']}x میانگین
+📊 **اندیکاتورها:**
+• **RSI:** `{analysis['rsi']}`
+• **MACD:** `{analysis['macd']}`
+• **باند بولینگر:** `{analysis['bb_position']}%`
+• **حجم:** {analysis['volume_ratio']}x میانگین
 
-🎯 حد سود (TP):
-• TP1: ${analysis['tp1']:,.4f} (+{((analysis['tp1']/analysis['price'])-1)*100:.1f}%)
-• TP2: ${analysis['tp2']:,.4f} (+{((analysis['tp2']/analysis['price'])-1)*100:.1f}%)
-• TP3: ${analysis['tp3']:,.4f} (+{((analysis['tp3']/analysis['price'])-1)*100:.1f}%)
+🎯 **حد سود (TP):**
+• TP1: `${analysis['tp1']:,.4f}` (+{((analysis['tp1']/analysis['price'])-1)*100:.1f}%)
+• TP2: `${analysis['tp2']:,.4f}` (+{((analysis['tp2']/analysis['price'])-1)*100:.1f}%)
+• TP3: `${analysis['tp3']:,.4f}` (+{((analysis['tp3']/analysis['price'])-1)*100:.1f}%)
 
-🛡️ حد ضرر (SL):
-• SL: ${analysis['sl']:,.4f} ({((analysis['sl']/analysis['price'])-1)*100:.1f}%)
+🛡️ **حد ضرر (SL):**
+• SL: `${analysis['sl']:,.4f}` ({((analysis['sl']/analysis['price'])-1)*100:.1f}%)
 
-📊 تغییرات ۲۴h: {analysis['change_24h']}%
+📊 **تغییرات:**
+• ۲۴ ساعت: `{analysis['change_24h']}%`
+• ۷ روز: `{analysis['change_7d']}%`
 """
                 
                 keyboard = [
@@ -1057,35 +1200,39 @@ class TradingBot:
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
             else:
-                await query.edit_message_text(f"❌ خطا در تحلیل {symbol}")
+                await query.edit_message_text(f"❌ **خطا در تحلیل {symbol}**")
         
         # ========== ساخت لایسنس ==========
         elif data.startswith('lic_'):
             if user_id != self.admin_id:
-                await query.edit_message_text("❌ شما ادمین نیستید")
+                await query.edit_message_text("❌ **شما ادمین نیستید**")
                 return
             
-            days = int(data.replace('lic_', ''))
-            key = db.create_license(days)
+            parts = data.split('_')
+            days = int(parts[1])
+            license_type = parts[2]
             
+            key = db.create_license(days, license_type)
             expiry_date = (datetime.now() + timedelta(days=days)).strftime('%Y/%m/%d')
+            type_name = "✨ پریمیوم" if license_type == 'premium' else "📘 عادی"
             
             await query.edit_message_text(
-                f"✅ لایسنس {days} روزه ساخته شد\n\n"
-                f"🔑 {key}\n\n"
-                f"📅 تاریخ انقضا: {expiry_date}"
+                f"✅ **لایسنس {type_name} {days} روزه ساخته شد**\n\n"
+                f"🔑 **کد لایسنس:**\n`{key}`\n\n"
+                f"📅 **تاریخ انقضا:** {expiry_date}\n\n"
+                f"📋 **برای کپی کردن، روی کد بالا کلیک کنید**"
             )
         
         # ========== حذف کاربر ==========
         elif data.startswith('del_'):
             if user_id != self.admin_id:
-                await query.edit_message_text("❌ شما ادمین نیستید")
+                await query.edit_message_text("❌ **شما ادمین نیستید**")
                 return
             
             target = data.replace('del_', '')
             db.delete_user(target)
-            await query.edit_message_text(f"✅ کاربر {target} حذف شد")
-    
+            await query.edit_message_text(f"✅ **کاربر `{target}` با موفقیت حذف شد**")
+
     def run(self):
         import requests
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook")
