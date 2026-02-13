@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🤖 IRON GOD V7 - نسخه ULTIMATE نهایی
+🤖 IRON GOD V7 - نسخه ULTIMATE نهایی (رفع خطا)
 ⚡ توسعه داده شده توسط @reunite_music
 🔥 قیمت لحظه‌ای همه ارزها | تحلیل ۱۲ اندیکاتوره | ۰ خطا | پشم‌ریز تضمینی
 """
@@ -146,6 +146,73 @@ class RealTimePriceFetcher:
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
     
+    def _get_from_coinbase(self) -> Optional[float]:
+        """دریافت قیمت از Coinbase"""
+        try:
+            response = self.session.get(
+                "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+                timeout=3
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return float(data['data']['amount'])
+        except:
+            pass
+        return None
+    
+    def _get_from_binance(self) -> Optional[float]:
+        """دریافت قیمت از Binance"""
+        try:
+            response = self.session.get(
+                "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+                timeout=3
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return float(data['price'])
+        except:
+            pass
+        return None
+    
+    def _get_from_kraken(self) -> Optional[float]:
+        """دریافت قیمت از Kraken"""
+        try:
+            response = self.session.get(
+                "https://api.kraken.com/0/public/Ticker?pair=XBTUSD",
+                timeout=3
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return float(data['result']['XXBTZUSD']['c'][0])
+        except:
+            pass
+        return None
+    
+    def _get_from_bybit(self) -> Optional[float]:
+        """دریافت قیمت از Bybit"""
+        try:
+            response = self.session.get(
+                "https://api.bybit.com/v5/market/tickers?category=spot&symbol=BTCUSDT",
+                timeout=3
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return float(data['result']['list'][0]['lastPrice'])
+        except:
+            pass
+        return None
+    
+    def _get_from_yahoo(self) -> Optional[float]:
+        """دریافت قیمت از Yahoo Finance"""
+        try:
+            btc = yf.Ticker("BTC-USD")
+            data = btc.history(period="1d", interval="1m")
+            if not data.empty:
+                return float(data['Close'].iloc[-1])
+        except:
+            pass
+        return None
+    
     def get_btc_price(self) -> float:
         """دریافت قیمت لحظه‌ای بیت‌کوین"""
         cache_key = 'BTC-USD'
@@ -157,6 +224,7 @@ class RealTimePriceFetcher:
             self._get_from_coinbase,
             self._get_from_binance,
             self._get_from_kraken,
+            self._get_from_bybit,
             self._get_from_yahoo
         ]
         
@@ -166,7 +234,10 @@ class RealTimePriceFetcher:
                 self.cache[cache_key] = {'price': price, 'time': time.time()}
                 return price
         
-        return 66500  # قیمت پیش‌فرض
+        # قیمت پیش‌فرض
+        default_price = 66500
+        self.cache[cache_key] = {'price': default_price, 'time': time.time()}
+        return default_price
     
     def get_eth_price(self) -> float:
         """دریافت قیمت لحظه‌ای اتریوم"""
@@ -178,7 +249,7 @@ class RealTimePriceFetcher:
         try:
             response = self.session.get(
                 "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",
-                timeout=2
+                timeout=3
             )
             if response.status_code == 200:
                 price = float(response.json()['price'])
@@ -188,14 +259,12 @@ class RealTimePriceFetcher:
         except:
             pass
         
-        try:
-            btc = self.get_btc_price()
-            eth_ratio = 0.05  # نسبت تقریبی ETH/BTC
-            price = btc * eth_ratio
-            self.cache[cache_key] = {'price': price, 'time': time.time()}
-            return price
-        except:
-            return 3300
+        # اگر نتونست از بایننس بگیره، از نسبت BTC استفاده کن
+        btc = self.get_btc_price()
+        eth_btc_ratio = 0.05  # نسبت تقریبی ETH/BTC
+        price = btc * eth_btc_ratio
+        self.cache[cache_key] = {'price': price, 'time': time.time()}
+        return price
     
     def get_price(self, ticker: str) -> float:
         """دریافت قیمت لحظه‌ای هر ارز"""
@@ -213,7 +282,7 @@ class RealTimePriceFetcher:
                 return self.cache[cache_key]['price']
         
         try:
-            df = yf.download(ticker, period="1d", interval="1m", progress=False, timeout=2)
+            df = yf.download(ticker, period="1d", interval="1m", progress=False, timeout=3)
             if not df.empty:
                 price = float(df['Close'].iloc[-1])
                 coin_data = CRYPTO_COINS.get(ticker, {})
@@ -228,7 +297,9 @@ class RealTimePriceFetcher:
         
         # اگر نتونست قیمت بگیره، از محدوده مجاز استفاده کن
         coin_data = CRYPTO_COINS.get(ticker, {})
-        return (coin_data.get('min', 1) + coin_data.get('max', 100)) / 2
+        price = (coin_data.get('min', 1) + coin_data.get('max', 100)) / 2
+        self.cache[cache_key] = {'price': price, 'time': time.time()}
+        return price
 
 price_fetcher = RealTimePriceFetcher()
 
