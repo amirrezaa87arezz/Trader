@@ -359,12 +359,14 @@ CRYPTO_COINS = {
 }
 
 # ============================================
-# 🗄️ دیتابیس
+# 🗄️ دیتابیس با کش دسترسی
 # ============================================
 
 class Database:
     def __init__(self):
         self.db_path = DB_PATH
+        self.access_cache = {}
+        self.cache_timeout = 60
         self._init_db()
     
     def _init_db(self):
@@ -387,8 +389,8 @@ class Database:
                     is_active INTEGER DEFAULT 1
                 )''')
                 conn.commit()
-        except:
-            pass
+        except Exception as e:
+            print(f"خطا در دیتابیس: {e}")
     
     @contextmanager
     def _get_conn(self):
@@ -464,20 +466,37 @@ class Database:
                 conn.execute("UPDATE licenses SET is_active = 0 WHERE license_key = ?", (key,))
                 self.add_user(user_id, username, first_name, new_expiry, lic_type)
                 
+                self.clear_access_cache(user_id)
+                
                 expiry_date = datetime.fromtimestamp(new_expiry).strftime('%Y/%m/%d')
                 return True, f"{msg}\n📅 تاریخ انقضا: {expiry_date}", lic_type, new_expiry
-        except:
-            return False, "❌ خطا در فعال‌سازی!", "regular", 0
+        except Exception as e:
+            return False, f"❌ خطا در فعال‌سازی: {str(e)}", "regular", 0
     
     def check_access(self, user_id: str) -> Tuple[bool, Optional[str]]:
         if str(user_id) == str(ADMIN_ID):
             return True, "admin"
+        
+        now = time.time()
+        if user_id in self.access_cache:
+            cached_time, cached_access, cached_type = self.access_cache[user_id]
+            if now - cached_time < self.cache_timeout:
+                return cached_access, cached_type
+        
         user = self.get_user(user_id)
         if not user:
-            return False, None
-        if user.get('expiry', 0) > time.time():
-            return True, user.get('license_type', 'regular')
-        return False, None
+            result = (False, None)
+        elif user.get('expiry', 0) > now:
+            result = (True, user.get('license_type', 'regular'))
+        else:
+            result = (False, None)
+        
+        self.access_cache[user_id] = (now, result[0], result[1])
+        return result
+    
+    def clear_access_cache(self, user_id: str):
+        if user_id in self.access_cache:
+            del self.access_cache[user_id]
     
     def get_all_users(self) -> List[Dict]:
         try:
@@ -490,6 +509,7 @@ class Database:
         try:
             with self._get_conn() as conn:
                 conn.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+                self.clear_access_cache(user_id)
                 return True
         except:
             return False
@@ -849,7 +869,6 @@ class IronGodBot:
             pass
     
     async def show_user_menu(self, update: Update, first_name: str, lic_type: str, expiry: float):
-        """نمایش منوی کاربر بعد از فعال‌سازی"""
         remaining = expiry - time.time()
         days = int(remaining // 86400) if remaining > 0 else 0
         btc = crypto.get_price('BTC-USD')
@@ -960,7 +979,6 @@ class IronGodBot:
         has_access, license_type = db.check_access(user_id)
         is_premium = (license_type == 'premium')
         
-        # فعال‌سازی لایسنس
         if text and text.upper().startswith('VIP-'):
             success, message, lic_type, expiry = db.activate_license(
                 text.upper(), user_id, username, first_name
@@ -968,7 +986,9 @@ class IronGodBot:
             await update.message.reply_text(message)
             if success:
                 await asyncio.sleep(1)
-                await self.show_user_menu(update, first_name, lic_type, expiry)
+                has_access, license_type = db.check_access(user_id)
+                is_premium = (license_type == 'premium')
+                await self.show_user_menu(update, first_name, license_type, expiry)
             return
         
         if not has_access and not is_admin:
@@ -979,7 +999,6 @@ class IronGodBot:
             )
             return
         
-        # تحلیل ارزها
         if text == '💰 تحلیل ارزها':
             keyboard = []
             row = []
@@ -999,11 +1018,11 @@ class IronGodBot:
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
-        # سیگنال VIP
         elif text in ['🔥 سیگنال VIP', '🔥 سیگنال VIP پریمیوم ✨']:
             is_vip_premium = (text == '🔥 سیگنال VIP پریمیوم ✨')
+            
             if is_vip_premium and not is_premium and not is_admin:
-                await update.message.reply_text(f"✨ **فقط پریمیوم!** ✨\n\nخرید لایسنس: {self.support}")
+                await update.message.reply_text(f"✨ **این سیگنال مخصوص کاربران پریمیوم است** ✨\n\nخرید لایسنس: {self.support}")
                 return
             
             msg = await update.message.reply_text("🔍 **در حال تحلیل لحظه‌ای بازار...** ⏳")
@@ -1062,7 +1081,6 @@ class IronGodBot:
             else:
                 await msg.edit_text("❌ **سیگنال پیدا نشد!**")
         
-        # سیگنال‌های برتر
         elif text == '🏆 سیگنال‌های برتر':
             msg = await update.message.reply_text("🔍 **در حال یافتن بهترین‌ها...** 🏆")
             signals = await ai.get_top_signals(5, is_premium)
@@ -1080,7 +1098,6 @@ class IronGodBot:
             else:
                 await msg.edit_text("❌ **سیگنال پیدا نشد!**")
         
-        # ساخت لایسنس
         elif text == '➕ ساخت لایسنس' and is_admin:
             keyboard = [
                 [InlineKeyboardButton('📘 ۷ روز', callback_data='lic_7_regular'),
@@ -1097,7 +1114,6 @@ class IronGodBot:
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
-        # مدیریت کاربران
         elif text == '👥 مدیریت' and is_admin:
             users = db.get_all_users()
             if not users:
@@ -1113,7 +1129,6 @@ class IronGodBot:
                 kb = [[InlineKeyboardButton('🗑️ حذف', callback_data=f'del_{user["user_id"]}')]]
                 await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
         
-        # آمار
         elif text == '📊 آمار' and is_admin:
             usd = currency.get_usd_formatted()
             usdt = currency.get_usdt_formatted()
@@ -1143,7 +1158,6 @@ class IronGodBot:
 """
             await update.message.reply_text(text)
         
-        # اعتبار
         elif text == '⏳ اعتبار':
             user_data = db.get_user(user_id)
             if user_data:
@@ -1168,7 +1182,6 @@ class IronGodBot:
             else:
                 await update.message.reply_text("❌ **کاربر نیست!**")
         
-        # راهنما
         elif text == '🎓 راهنما':
             help_text = f"""
 🎓 **راهنمای IRON GOD V10**
@@ -1190,7 +1203,6 @@ class IronGodBot:
 """
             await update.message.reply_text(help_text)
         
-        # پشتیبانی
         elif text == '📞 پشتیبانی':
             await update.message.reply_text(f"📞 **پشتیبانی**\n\n`{self.support}`\n⏰ ۲۴ ساعته")
     
