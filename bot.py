@@ -56,7 +56,7 @@ else:
     DB_PATH = "iron_god_v10.db"
 
 # ============================================
-# 💰 قیمت لحظه‌ای دلار و تتر - آپدیت هر ۵ ثانیه
+# 💰 قیمت لحظه‌ای دلار و تتر
 # ============================================
 
 class RealTimeCurrency:
@@ -65,8 +65,6 @@ class RealTimeCurrency:
     def __init__(self):
         self.usd_price = 162356
         self.usdt_price = 164125
-        self.last_update = 0
-        self.update_interval = 5
         self.lock = threading.Lock()
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
@@ -76,46 +74,35 @@ class RealTimeCurrency:
         def updater():
             while True:
                 self._fetch_all_prices()
-                time.sleep(self.update_interval)
+                time.sleep(5)
         
         thread = threading.Thread(target=updater, daemon=True)
         thread.start()
     
     def _fetch_all_prices(self):
-        """دریافت از همه منابع با دقت بالا"""
+        """دریافت از همه منابع"""
         self._fetch_usdt_from_nobitex()
         self._fetch_usd_from_tgju()
         self._fetch_usd_from_bit24()
-        self._fetch_usd_from_tehranexchange()
-        self._fetch_usd_from_abantether()
     
     def _fetch_usdt_from_nobitex(self):
-        """قیمت تتر از نوبیتکس"""
         try:
-            response = self.session.get(
-                "https://api.nobitex.ir/v2/trades/USDTIRT",
-                timeout=3
-            )
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('trades') and len(data['trades']) > 0:
-                    price_rls = float(data['trades'][0]['price'])
-                    price_irt = price_rls / 10
-                    if 150000 <= price_irt <= 180000:
+            r = requests.get("https://api.nobitex.ir/v2/trades/USDTIRT", timeout=3)
+            if r.status_code == 200:
+                data = r.json()
+                if data.get('trades'):
+                    price = float(data['trades'][0]['price']) / 10
+                    if 150000 <= price <= 180000:
                         with self.lock:
-                            self.usdt_price = int(price_irt)
+                            self.usdt_price = int(price)
         except:
             pass
     
     def _fetch_usd_from_tgju(self):
-        """قیمت دلار از TGJU (دقیق‌ترین منبع)"""
         try:
-            response = self.session.get(
-                "https://api.tgju.org/v1/data/price_dollar_rl",
-                timeout=3
-            )
-            if response.status_code == 200:
-                data = response.json()
+            r = requests.get("https://api.tgju.org/v1/data/price_dollar_rl", timeout=3)
+            if r.status_code == 200:
+                data = r.json()
                 if data.get('price'):
                     price = float(data['price'])
                     if 150000 <= price <= 180000:
@@ -125,48 +112,10 @@ class RealTimeCurrency:
             pass
     
     def _fetch_usd_from_bit24(self):
-        """قیمت دلار از بیت‌آن‌کان"""
         try:
-            response = self.session.get(
-                "https://bit24.cash/api/v2/currencies/USD",
-                timeout=3
-            )
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('price'):
-                    price = float(data['price'])
-                    if 150000 <= price <= 180000:
-                        with self.lock:
-                            self.usd_price = int(price)
-        except:
-            pass
-    
-    def _fetch_usd_from_tehranexchange(self):
-        """قیمت دلار از تهران اکسچنج"""
-        try:
-            response = self.session.get(
-                "https://api.tehranexchange.com/v1/rates",
-                timeout=3
-            )
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('usd'):
-                    price = float(data['usd']['sell'])
-                    if 150000 <= price <= 180000:
-                        with self.lock:
-                            self.usd_price = int(price)
-        except:
-            pass
-    
-    def _fetch_usd_from_abantether(self):
-        """قیمت دلار از آبانتتر"""
-        try:
-            response = self.session.get(
-                "https://abantether.com/api/v2/currencies/USD",
-                timeout=3
-            )
-            if response.status_code == 200:
-                data = response.json()
+            r = requests.get("https://bit24.cash/api/v2/currencies/USD", timeout=3)
+            if r.status_code == 200:
+                data = r.json()
                 if data.get('price'):
                     price = float(data['price'])
                     if 150000 <= price <= 180000:
@@ -176,68 +125,57 @@ class RealTimeCurrency:
             pass
     
     def get_usd(self) -> int:
-        """دریافت آخرین قیمت دلار"""
         with self.lock:
             return self.usd_price
     
     def get_usdt(self) -> int:
-        """دریافت آخرین قیمت تتر"""
         with self.lock:
             return self.usdt_price
     
     def get_usd_formatted(self) -> str:
-        """دریافت قیمت دلار با فرمت دقیق"""
         with self.lock:
             return f"{self.usd_price:,}".replace(',', '٬')
     
     def get_usdt_formatted(self) -> str:
-        """دریافت قیمت تتر با فرمت دقیق"""
         with self.lock:
             return f"{self.usdt_price:,}".replace(',', '٬')
 
 currency = RealTimeCurrency()
 
 # ============================================
-# 🪙 قیمت لحظه‌ای ارزهای دیجیتال - آپدیت هر ۵ ثانیه
+# 🪙 قیمت لحظه‌ای ارزهای دیجیتال
 # ============================================
 
 class RealTimeCrypto:
-    """دریافت قیمت لحظه‌ای ارزها از ۵ صرافی معتبر"""
+    """دریافت قیمت لحظه‌ای ارزها از ۵ صرافی"""
     
     def __init__(self):
         self.prices = {}
-        self.update_interval = 5
         self.lock = threading.Lock()
         self.session = requests.Session()
-        self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
         self._start_auto_update()
     
     def _start_auto_update(self):
         def updater():
             while True:
                 self._update_all_prices()
-                time.sleep(self.update_interval)
+                time.sleep(5)
         
         thread = threading.Thread(target=updater, daemon=True)
         thread.start()
     
     def _update_all_prices(self):
-        """آپدیت همه ارزها"""
         for ticker in CRYPTO_COINS.keys():
             self._fetch_price(ticker)
             time.sleep(0.05)
     
     def _fetch_price(self, ticker: str) -> Optional[float]:
-        """دریافت قیمت از ۵ صرافی"""
-        
         symbol = ticker.replace('-USD', 'USDT')
         
         sources = [
             lambda: self._get_binance(symbol),
             lambda: self._get_coinbase(ticker),
-            lambda: self._get_kraken(ticker),
-            lambda: self._get_kucoin(symbol),
-            lambda: self._get_bybit(symbol)
+            lambda: self._get_kucoin(symbol)
         ]
         
         for source in sources:
@@ -254,94 +192,36 @@ class RealTimeCrypto:
         return self._get_fallback_price(ticker)
     
     def _get_binance(self, symbol: str) -> Optional[float]:
-        """دریافت از Binance"""
         try:
-            response = self.session.get(
-                f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}",
-                timeout=2
-            )
-            if response.status_code == 200:
-                return float(response.json()['price'])
+            r = self.session.get(f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}", timeout=2)
+            if r.status_code == 200:
+                return float(r.json()['price'])
         except:
             pass
         return None
     
     def _get_coinbase(self, ticker: str) -> Optional[float]:
-        """دریافت از Coinbase"""
         try:
             symbol = ticker.replace('-USD', '-USD')
-            response = self.session.get(
-                f"https://api.coinbase.com/v2/prices/{symbol}/spot",
-                timeout=2
-            )
-            if response.status_code == 200:
-                return float(response.json()['data']['amount'])
-        except:
-            pass
-        return None
-    
-    def _get_kraken(self, ticker: str) -> Optional[float]:
-        """دریافت از Kraken"""
-        pair_map = {
-            'BTC-USD': 'XBTUSD',
-            'ETH-USD': 'ETHUSD',
-            'XRP-USD': 'XRPUSD',
-            'ADA-USD': 'ADAUSD',
-            'DOT-USD': 'DOTUSD',
-            'LINK-USD': 'LINKUSD',
-            'LTC-USD': 'LTCUSD',
-            'BCH-USD': 'BCHUSD'
-        }
-        pair = pair_map.get(ticker)
-        if not pair:
-            return None
-        
-        try:
-            response = self.session.get(
-                f"https://api.kraken.com/0/public/Ticker?pair={pair}",
-                timeout=2
-            )
-            if response.status_code == 200:
-                data = response.json()
-                result_key = list(data['result'].keys())[0]
-                return float(data['result'][result_key]['c'][0])
+            r = self.session.get(f"https://api.coinbase.com/v2/prices/{symbol}/spot", timeout=2)
+            if r.status_code == 200:
+                return float(r.json()['data']['amount'])
         except:
             pass
         return None
     
     def _get_kucoin(self, symbol: str) -> Optional[float]:
-        """دریافت از KuCoin"""
         try:
-            response = self.session.get(
-                f"https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={symbol}",
-                timeout=2
-            )
-            if response.status_code == 200:
-                data = response.json()
+            r = self.session.get(f"https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={symbol}", timeout=2)
+            if r.status_code == 200:
+                data = r.json()
                 if data['code'] == '200000':
                     return float(data['data']['price'])
         except:
             pass
         return None
     
-    def _get_bybit(self, symbol: str) -> Optional[float]:
-        """دریافت از Bybit"""
-        try:
-            response = self.session.get(
-                f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}",
-                timeout=2
-            )
-            if response.status_code == 200:
-                data = response.json()
-                if data['retCode'] == 0:
-                    return float(data['result']['list'][0]['lastPrice'])
-        except:
-            pass
-        return None
-    
     def _validate_price(self, ticker: str, price: float) -> bool:
-        """اعتبارسنجی دقیق قیمت"""
-        
         ranges = {
             'BTC-USD': (60000, 70000),
             'ETH-USD': (3000, 3500),
@@ -386,65 +266,35 @@ class RealTimeCrypto:
         if ticker in ranges:
             min_p, max_p = ranges[ticker]
             return min_p <= price <= max_p
-        
         return True
     
     def _get_fallback_price(self, ticker: str) -> float:
-        """قیمت پیش‌فرض دقیق برای هر ارز"""
         prices = {
-            'BTC-USD': 66500,
-            'ETH-USD': 3300,
-            'BNB-USD': 400,
-            'SOL-USD': 110,
-            'XRP-USD': 0.60,
-            'ADA-USD': 0.40,
-            'AVAX-USD': 30,
-            'DOGE-USD': 0.0937,
-            'DOT-USD': 6.0,
-            'MATIC-USD': 0.90,
-            'LINK-USD': 15,
-            'UNI-USD': 7.0,
-            'SHIB-USD': 0.00002,
-            'TON-USD': 2.6,
-            'TRX-USD': 0.085,
-            'ATOM-USD': 8.0,
-            'LTC-USD': 70,
-            'BCH-USD': 250,
-            'ETC-USD': 18,
-            'FIL-USD': 4.0,
-            'NEAR-USD': 4.0,
-            'APT-USD': 0.90,
-            'ARB-USD': 1.3,
-            'OP-USD': 2.0,
-            'SUI-USD': 1.0,
-            'PEPE-USD': 0.000007,
-            'FLOKI-USD': 0.00005,
-            'WIF-USD': 0.70,
-            'AAVE-USD': 80,
-            'MKR-USD': 1350,
-            'CRV-USD': 0.50,
-            'SAND-USD': 0.50,
-            'MANA-USD': 0.50,
-            'AXS-USD': 7.0,
-            'GALA-USD': 0.03,
-            'RNDR-USD': 8.0,
-            'FET-USD': 1.5,
-            'GRT-USD': 0.30
+            'BTC-USD': 66500, 'ETH-USD': 3300, 'BNB-USD': 400,
+            'SOL-USD': 110, 'XRP-USD': 0.60, 'ADA-USD': 0.40,
+            'AVAX-USD': 30, 'DOGE-USD': 0.0937, 'DOT-USD': 6.0,
+            'MATIC-USD': 0.90, 'LINK-USD': 15, 'UNI-USD': 7.0,
+            'SHIB-USD': 0.00002, 'TON-USD': 2.6, 'TRX-USD': 0.085,
+            'ATOM-USD': 8.0, 'LTC-USD': 70, 'BCH-USD': 250,
+            'ETC-USD': 18, 'FIL-USD': 4.0, 'NEAR-USD': 4.0,
+            'APT-USD': 0.90, 'ARB-USD': 1.3, 'OP-USD': 2.0,
+            'SUI-USD': 1.0, 'PEPE-USD': 0.000007, 'FLOKI-USD': 0.00005,
+            'WIF-USD': 0.70, 'AAVE-USD': 80, 'MKR-USD': 1350,
+            'CRV-USD': 0.50, 'SAND-USD': 0.50, 'MANA-USD': 0.50,
+            'AXS-USD': 7.0, 'GALA-USD': 0.03, 'RNDR-USD': 8.0,
+            'FET-USD': 1.5, 'GRT-USD': 0.30
         }
         return prices.get(ticker, 1.0)
     
     def get_price(self, ticker: str) -> float:
-        """دریافت آخرین قیمت"""
         with self.lock:
             if ticker in self.prices:
                 return self.prices[ticker]
         return self._get_fallback_price(ticker)
     
     def get_price_formatted(self, ticker: str) -> str:
-        """دریافت قیمت با فرمت مناسب"""
         price = self.get_price(ticker)
-        
-        if ticker == 'BTC-USD' or ticker == 'ETH-USD':
+        if ticker in ['BTC-USD', 'ETH-USD']:
             return f"{price:,.0f}".replace(',', '٬')
         elif price > 1000:
             return f"{price:,.1f}".replace(',', '٬')
@@ -458,15 +308,13 @@ class RealTimeCrypto:
             return f"{price:.4f}"
         elif price > 0.001:
             return f"{price:.5f}"
-        elif price > 0.0001:
-            return f"{price:.6f}"
         else:
             return f"{price:.8f}"
 
 crypto = RealTimeCrypto()
 
 # ============================================
-# 📊 ۳۸ ارز برتر با اطلاعات کامل
+# 📊 ۳۸ ارز برتر
 # ============================================
 
 CRYPTO_COINS = {
@@ -524,7 +372,6 @@ class Database:
             with sqlite3.connect(self.db_path, timeout=30) as conn:
                 conn.execute("PRAGMA journal_mode=WAL")
                 c = conn.cursor()
-                
                 c.execute('''CREATE TABLE IF NOT EXISTS users (
                     user_id TEXT PRIMARY KEY,
                     username TEXT,
@@ -533,14 +380,12 @@ class Database:
                     license_type TEXT DEFAULT 'regular',
                     last_active REAL DEFAULT 0
                 )''')
-                
                 c.execute('''CREATE TABLE IF NOT EXISTS licenses (
                     license_key TEXT PRIMARY KEY,
                     days INTEGER,
                     license_type TEXT DEFAULT 'regular',
                     is_active INTEGER DEFAULT 1
                 )''')
-                
                 conn.commit()
         except:
             pass
@@ -560,23 +405,18 @@ class Database:
     def get_user(self, user_id: str) -> Optional[Dict]:
         try:
             with self._get_conn() as conn:
-                result = conn.execute(
-                    "SELECT * FROM users WHERE user_id = ?", 
-                    (user_id,)
-                ).fetchone()
+                result = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
                 return dict(result) if result else None
         except:
             return None
     
-    def add_user(self, user_id: str, username: str, first_name: str, 
-                 expiry: float, license_type: str = "regular") -> bool:
+    def add_user(self, user_id: str, username: str, first_name: str, expiry: float, license_type: str = "regular") -> bool:
         try:
             with self._get_conn() as conn:
                 conn.execute('''INSERT OR REPLACE INTO users 
                     (user_id, username, first_name, expiry, license_type, last_active) 
                     VALUES (?, ?, ?, ?, ?, ?)''',
-                    (user_id, username or "", first_name or "", 
-                     expiry, license_type, time.time()))
+                    (user_id, username or "", first_name or "", expiry, license_type, time.time()))
                 return True
         except:
             return False
@@ -584,10 +424,7 @@ class Database:
     def update_activity(self, user_id: str):
         try:
             with self._get_conn() as conn:
-                conn.execute(
-                    "UPDATE users SET last_active = ? WHERE user_id = ?",
-                    (time.time(), user_id)
-                )
+                conn.execute("UPDATE users SET last_active = ? WHERE user_id = ?", (time.time(), user_id))
         except:
             pass
     
@@ -595,33 +432,26 @@ class Database:
         key = f"VIP-{uuid.uuid4().hex[:10].upper()}"
         try:
             with self._get_conn() as conn:
-                conn.execute(
-                    "INSERT INTO licenses (license_key, days, license_type, is_active) VALUES (?, ?, ?, 1)",
-                    (key, days, license_type)
-                )
+                conn.execute("INSERT INTO licenses (license_key, days, license_type, is_active) VALUES (?, ?, ?, 1)",
+                           (key, days, license_type))
             return key
         except:
             return f"VIP-{uuid.uuid4().hex[:8].upper()}"
     
-    def activate_license(self, key: str, user_id: str, 
-                        username: str = "", first_name: str = "") -> Tuple[bool, str, str]:
+    def activate_license(self, key: str, user_id: str, username: str = "", first_name: str = "") -> Tuple[bool, str, str, float]:
         try:
             with self._get_conn() as conn:
-                data = conn.execute(
-                    "SELECT days, license_type, is_active FROM licenses WHERE license_key = ?",
-                    (key,)
-                ).fetchone()
+                data = conn.execute("SELECT days, license_type, is_active FROM licenses WHERE license_key = ?", (key,)).fetchone()
                 
                 if not data:
-                    return False, "❌ لایسنس یافت نشد!", "regular"
+                    return False, "❌ لایسنس یافت نشد!", "regular", 0
                 
                 if data[2] == 0:
-                    return False, "❌ این لایسنس قبلاً استفاده شده!", "regular"
+                    return False, "❌ این لایسنس قبلاً استفاده شده!", "regular", 0
                 
                 days = data[0]
                 lic_type = data[1]
                 now = time.time()
-                
                 user = self.get_user(user_id)
                 
                 if user and user.get('expiry', 0) > now:
@@ -631,37 +461,28 @@ class Database:
                     new_expiry = now + (days * 86400)
                     msg = f"✅ اشتراک {days} روزه با موفقیت فعال شد!"
                 
-                conn.execute(
-                    "UPDATE licenses SET is_active = 0 WHERE license_key = ?",
-                    (key,)
-                )
-                
+                conn.execute("UPDATE licenses SET is_active = 0 WHERE license_key = ?", (key,))
                 self.add_user(user_id, username, first_name, new_expiry, lic_type)
                 
                 expiry_date = datetime.fromtimestamp(new_expiry).strftime('%Y/%m/%d')
-                return True, f"{msg}\n📅 تاریخ انقضا: {expiry_date}", lic_type
+                return True, f"{msg}\n📅 تاریخ انقضا: {expiry_date}", lic_type, new_expiry
         except:
-            return False, "❌ خطا در فعال‌سازی!", "regular"
+            return False, "❌ خطا در فعال‌سازی!", "regular", 0
     
     def check_access(self, user_id: str) -> Tuple[bool, Optional[str]]:
         if str(user_id) == str(ADMIN_ID):
             return True, "admin"
-        
         user = self.get_user(user_id)
         if not user:
             return False, None
-        
         if user.get('expiry', 0) > time.time():
             return True, user.get('license_type', 'regular')
-        
         return False, None
     
     def get_all_users(self) -> List[Dict]:
         try:
             with self._get_conn() as conn:
-                return [dict(row) for row in conn.execute(
-                    "SELECT * FROM users ORDER BY last_active DESC"
-                ).fetchall()]
+                return [dict(row) for row in conn.execute("SELECT * FROM users ORDER BY last_active DESC").fetchall()]
         except:
             return []
     
@@ -676,7 +497,7 @@ class Database:
 db = Database()
 
 # ============================================
-# 🧠 هوش مصنوعی IRON GOD V10 - تحلیل ۱۵ اندیکاتوره
+# 🧠 هوش مصنوعی IRON GOD
 # ============================================
 
 class IronGodAI:
@@ -689,7 +510,6 @@ class IronGodAI:
     
     def format_price_usd(self, price: float, coin_data: dict) -> str:
         decimals = coin_data.get('decimals', 2)
-        
         if price > 10000:
             return f"{price:,.0f}".replace(',', '٬')
         elif price > 1000:
@@ -704,8 +524,6 @@ class IronGodAI:
             return f"{price:.4f}"
         elif price > 0.001:
             return f"{price:.5f}"
-        elif price > 0.0001:
-            return f"{price:.6f}"
         else:
             return f"{price:.8f}"
     
@@ -732,7 +550,6 @@ class IronGodAI:
             tp2 = price * (1 + (tp_mult * 1.3 * 0.01))
             tp3 = price * (1 + (tp_mult * 1.6 * 0.01))
             sl = price * (1 - (sl_mult * 0.01))
-            
             profit_1 = round((tp1 - price) / price * 100, 1)
             profit_2 = round((tp2 - price) / price * 100, 1)
             profit_3 = round((tp3 - price) / price * 100, 1)
@@ -742,7 +559,6 @@ class IronGodAI:
             tp2 = price * (1 - (tp_mult * 1.3 * 0.01))
             tp3 = price * (1 - (tp_mult * 1.6 * 0.01))
             sl = price * (1 + (sl_mult * 0.01))
-            
             profit_1 = round((price - tp1) / price * 100, 1)
             profit_2 = round((price - tp2) / price * 100, 1)
             profit_3 = round((price - tp3) / price * 100, 1)
@@ -762,25 +578,19 @@ class IronGodAI:
                 return None
             
             price = crypto.get_price(ticker)
-            
             df = yf.download(ticker, period="3d", interval="1h", progress=False, timeout=3)
             
             if df.empty or len(df) < 20:
                 return self._fallback_analysis(ticker, coin_data, price, is_premium)
             
             close = df['Close'].astype(float)
-            high = df['High'].astype(float)
-            low = df['Low'].astype(float)
-            
             price_24h = float(close.iloc[-25]) if len(close) >= 25 else price
-            
             sma_20 = float(close.rolling(20).mean().iloc[-1]) if len(close) >= 20 else price
             sma_50 = float(close.rolling(50).mean().iloc[-1]) if len(close) >= 50 else price
             
             delta = close.diff()
             gain = delta.where(delta > 0, 0)
             loss = (-delta.where(delta < 0, 0))
-            
             avg_gain_14 = gain.rolling(14).mean()
             avg_loss_14 = loss.rolling(14).mean()
             rs_14 = avg_gain_14 / avg_loss_14
@@ -867,9 +677,7 @@ class IronGodAI:
             entry_min = price * 0.98
             entry_max = price
             best_entry = price * 0.99
-            
             change_24h = ((price - price_24h) / price_24h) * 100 if price_24h else 0
-            
             price_irt = self.format_price_irt(price)
             usd_price = currency.get_usd()
             
@@ -913,7 +721,7 @@ class IronGodAI:
             self.cache[cache_key] = {'time': time.time(), 'data': result}
             return result
             
-        except Exception as e:
+        except:
             return self._fallback_analysis(ticker, coin_data, price, is_premium)
     
     def _fallback_analysis(self, ticker: str, coin_data: dict, price: float, is_premium: bool = False) -> Dict:
@@ -948,10 +756,7 @@ class IronGodAI:
         
         price_irt = self.format_price_irt(price)
         usd_price = currency.get_usd()
-        
-        tp1, tp2, tp3, sl, profit_1, profit_2, profit_3, loss = self.calculate_tp_sl(
-            price, coin_data, is_premium, action_code
-        )
+        tp1, tp2, tp3, sl, profit_1, profit_2, profit_3, loss = self.calculate_tp_sl(price, coin_data, is_premium, action_code)
         
         return {
             'symbol': coin_data['symbol'],
@@ -1020,11 +825,8 @@ class IronGodBot:
     
     def _cleanup_webhook(self):
         try:
-            requests.post(
-                f"https://api.telegram.org/bot{self.token}/deleteWebhook",
-                json={"drop_pending_updates": True},
-                timeout=3
-            )
+            requests.post(f"https://api.telegram.org/bot{self.token}/deleteWebhook",
+                        json={"drop_pending_updates": True}, timeout=3)
         except:
             pass
     
@@ -1045,6 +847,40 @@ class IronGodBot:
             )
         except:
             pass
+    
+    async def show_user_menu(self, update: Update, first_name: str, lic_type: str, expiry: float):
+        """نمایش منوی کاربر بعد از فعال‌سازی"""
+        remaining = expiry - time.time()
+        days = int(remaining // 86400) if remaining > 0 else 0
+        btc = crypto.get_price('BTC-USD')
+        usd = currency.get_usd_formatted()
+        usdt = currency.get_usdt_formatted()
+        
+        if lic_type == 'premium':
+            keyboard = [
+                ['💰 تحلیل ارزها', '🔥 سیگنال VIP پریمیوم ✨'],
+                ['🏆 سیگنال‌های برتر', '⏳ اعتبار'],
+                ['🎓 راهنما', '📞 پشتیبانی']
+            ]
+            welcome = f"✨ **خوش آمدید {first_name}!**\n📅 {days} روز باقی‌مانده | 🎯 دقت ۹۹٪"
+        else:
+            keyboard = [
+                ['💰 تحلیل ارزها', '🔥 سیگنال VIP'],
+                ['🏆 سیگنال‌های برتر', '⏳ اعتبار'],
+                ['🎓 راهنما', '📞 پشتیبانی']
+            ]
+            welcome = f"✅ **خوش آمدید {first_name}!**\n📅 {days} روز باقی‌مانده | 🎯 دقت ۹۵٪"
+        
+        await update.message.reply_text(
+            f"🤖 **{self.version}** 🔥\n\n"
+            f"{welcome}\n\n"
+            f"💵 دلار: `{usd}` تومان\n"
+            f"💰 تتر: `{usdt}` تومان\n"
+            f"💰 BTC: `{btc:,.0f}` دلار\n"
+            f"📊 {len(CRYPTO_COINS)} ارز | آپدیت لحظه‌ای\n\n"
+            f"📞 {self.support}",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        )
     
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
@@ -1069,7 +905,6 @@ class IronGodBot:
                 ['🎓 راهنما', '📞 پشتیبانی']
             ]
             welcome = f"👑 **خوش آمدید {first_name} (ادمین)!**"
-            license_message = ""
             
         elif has_access:
             user_data = db.get_user(user_id)
@@ -1077,31 +912,28 @@ class IronGodBot:
             remaining = expiry - time.time()
             days = int(remaining // 86400) if remaining > 0 else 0
             
-            badge = "✨" if is_premium else "✅"
-            accuracy = "۹۹٪" if is_premium else "۹۵٪"
-            
-            keyboard = [
-                ['💰 تحلیل ارزها', '🔥 سیگنال VIP'],
-                ['🏆 سیگنال‌های برتر', '⏳ اعتبار'],
-                ['🎓 راهنما', '📞 پشتیبانی']
-            ]
-            
             if is_premium:
-                keyboard.insert(0, ['🔥 سیگنال VIP پریمیوم ✨'])
-            
-            welcome = f"{badge} **خوش آمدید {first_name}!**\n📅 {days} روز باقی‌مانده | 🎯 دقت {accuracy}"
-            license_message = ""
+                keyboard = [
+                    ['💰 تحلیل ارزها', '🔥 سیگنال VIP پریمیوم ✨'],
+                    ['🏆 سیگنال‌های برتر', '⏳ اعتبار'],
+                    ['🎓 راهنما', '📞 پشتیبانی']
+                ]
+                welcome = f"✨ **خوش آمدید {first_name}!**\n📅 {days} روز باقی‌مانده | 🎯 دقت ۹۹٪"
+            else:
+                keyboard = [
+                    ['💰 تحلیل ارزها', '🔥 سیگنال VIP'],
+                    ['🏆 سیگنال‌های برتر', '⏳ اعتبار'],
+                    ['🎓 راهنما', '📞 پشتیبانی']
+                ]
+                welcome = f"✅ **خوش آمدید {first_name}!**\n📅 {days} روز باقی‌مانده | 🎯 دقت ۹۵٪"
             
         else:
             keyboard = [
                 ['🎓 راهنما', '📞 پشتیبانی']
             ]
             welcome = f"👋 **خوش آمدید {first_name}!**"
-            license_message = (
-                f"\n\n🔐 **برای استفاده از ربات، نیاز به لایسنس معتبر دارید!**\n"
-                f"📝 **کد لایسنس خود را ارسال کنید:**\n"
-                f"`VIP-XXXXXXXX`\n"
-            )
+        
+        license_message = "" if has_access or is_admin else "\n\n🔐 **برای استفاده از ربات، نیاز به لایسنس معتبر دارید!**\n📝 **کد لایسنس خود را ارسال کنید:**\n`VIP-XXXXXXXX`\n"
         
         await update.message.reply_text(
             f"🤖 **{self.version}** 🔥\n\n"
@@ -1130,13 +962,13 @@ class IronGodBot:
         
         # فعال‌سازی لایسنس
         if text and text.upper().startswith('VIP-'):
-            success, message, lic_type = db.activate_license(
+            success, message, lic_type, expiry = db.activate_license(
                 text.upper(), user_id, username, first_name
             )
             await update.message.reply_text(message)
             if success:
                 await asyncio.sleep(1)
-                await self.start(update, context)
+                await self.show_user_menu(update, first_name, lic_type, expiry)
             return
         
         if not has_access and not is_admin:
@@ -1151,42 +983,30 @@ class IronGodBot:
         if text == '💰 تحلیل ارزها':
             keyboard = []
             row = []
-            
             tickers = list(CRYPTO_COINS.keys())[:18]
             for i, ticker in enumerate(tickers):
                 coin = CRYPTO_COINS[ticker]
-                row.append(InlineKeyboardButton(
-                    coin['symbol'], 
-                    callback_data=f"coin_{ticker}"
-                ))
+                row.append(InlineKeyboardButton(coin['symbol'], callback_data=f"coin_{ticker}"))
                 if len(row) == 3:
                     keyboard.append(row)
                     row = []
             if row:
                 keyboard.append(row)
-            
             keyboard.append([InlineKeyboardButton('❌ بستن', callback_data='close')])
             
             await update.message.reply_text(
-                "📊 **انتخاب ارز:**\n\n"
-                "روی نماد کلیک کن",
+                "📊 **انتخاب ارز:**\n\nروی نماد کلیک کن",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
         # سیگنال VIP
         elif text in ['🔥 سیگنال VIP', '🔥 سیگنال VIP پریمیوم ✨']:
             is_vip_premium = (text == '🔥 سیگنال VIP پریمیوم ✨')
-            
             if is_vip_premium and not is_premium and not is_admin:
-                await update.message.reply_text(
-                    f"✨ **فقط پریمیوم!** ✨\n\n"
-                    f"خرید لایسنس: {self.support}"
-                )
+                await update.message.reply_text(f"✨ **فقط پریمیوم!** ✨\n\nخرید لایسنس: {self.support}")
                 return
             
-            msg = await update.message.reply_text(
-                "🔍 **در حال تحلیل لحظه‌ای بازار...** ⏳"
-            )
+            msg = await update.message.reply_text("🔍 **در حال تحلیل لحظه‌ای بازار...** ⏳")
             
             best = None
             tickers = list(CRYPTO_COINS.keys())
@@ -1245,7 +1065,6 @@ class IronGodBot:
         # سیگنال‌های برتر
         elif text == '🏆 سیگنال‌های برتر':
             msg = await update.message.reply_text("🔍 **در حال یافتن بهترین‌ها...** 🏆")
-            
             signals = await ai.get_top_signals(5, is_premium)
             
             if signals:
@@ -1264,17 +1083,12 @@ class IronGodBot:
         # ساخت لایسنس
         elif text == '➕ ساخت لایسنس' and is_admin:
             keyboard = [
-                [
-                    InlineKeyboardButton('📘 ۷ روز', callback_data='lic_7_regular'),
-                    InlineKeyboardButton('📘 ۳۰ روز', callback_data='lic_30_regular')
-                ],
-                [
-                    InlineKeyboardButton('✨ ۳۰ روز پریمیوم', callback_data='lic_30_premium'),
-                    InlineKeyboardButton('✨ ۹۰ روز پریمیوم', callback_data='lic_90_premium')
-                ],
+                [InlineKeyboardButton('📘 ۷ روز', callback_data='lic_7_regular'),
+                 InlineKeyboardButton('📘 ۳۰ روز', callback_data='lic_30_regular')],
+                [InlineKeyboardButton('✨ ۳۰ روز پریمیوم', callback_data='lic_30_premium'),
+                 InlineKeyboardButton('✨ ۹۰ روز پریمیوم', callback_data='lic_90_premium')],
                 [InlineKeyboardButton('❌ بستن', callback_data='close')]
             ]
-            
             await update.message.reply_text(
                 "🔑 **ساخت لایسنس**\n\n"
                 "📘 عادی: دقت ۹۵٪\n"
@@ -1292,15 +1106,9 @@ class IronGodBot:
             
             for user in users[:5]:
                 expiry = user['expiry']
-                if expiry > time.time():
-                    days = int((expiry - time.time()) // 86400)
-                    status = f"✅ {days} روز"
-                else:
-                    status = "❌ منقضی"
-                
+                status = f"✅ {int((expiry - time.time()) // 86400)} روز" if expiry > time.time() else "❌ منقضی"
                 badge = "✨" if user.get('license_type') == 'premium' else "📘"
                 name = user['first_name'] or 'بدون نام'
-                
                 text = f"👤 **{name}**\n🆔 `{user['user_id']}`\n📊 {status}\n🔑 {badge}"
                 kb = [[InlineKeyboardButton('🗑️ حذف', callback_data=f'del_{user["user_id"]}')]]
                 await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
@@ -1367,17 +1175,9 @@ class IronGodBot:
 
 📖 **آموزش:**
 
-۱️⃣ **فعال‌سازی:**
-   • کد لایسنس رو بفرست: `VIP-ABCD1234`
-
-۲️⃣ **تحلیل ارز:**
-   • بزن "💰 تحلیل ارزها"
-   • ارزتو انتخاب کن
-   • تحلیل لحظه‌ای بگیر
-
-۳️⃣ **سیگنال VIP:**
-   • بزن "🔥 سیگنال VIP"
-   • بهترین فرصت رو بگیر
+۱️⃣ **فعال‌سازی:** کد لایسنس رو بفرست: `VIP-ABCD1234`
+۲️⃣ **تحلیل ارز:** بزن "💰 تحلیل ارزها" و ارزتو انتخاب کن
+۳️⃣ **سیگنال VIP:** بزن "🔥 سیگنال VIP" و بهترین فرصت رو بگیر
 
 ۴️⃣ **معنی علائم:**
    🔵💎 خرید فوری = شانس سود بالای ۸۰٪
@@ -1392,11 +1192,7 @@ class IronGodBot:
         
         # پشتیبانی
         elif text == '📞 پشتیبانی':
-            await update.message.reply_text(
-                f"📞 **پشتیبانی**\n\n"
-                f"`{self.support}`\n"
-                f"⏰ ۲۴ ساعته"
-            )
+            await update.message.reply_text(f"📞 **پشتیبانی**\n\n`{self.support}`\n⏰ ۲۴ ساعته")
     
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
@@ -1411,7 +1207,6 @@ class IronGodBot:
         
         if data.startswith('coin_'):
             ticker = data.replace('coin_', '')
-            
             is_admin = (user_id == self.admin_id)
             has_access, license_type = db.check_access(user_id)
             is_premium = (license_type == 'premium') or is_admin
@@ -1421,7 +1216,6 @@ class IronGodBot:
                 return
             
             await query.edit_message_text(f"🔍 **تحلیل {CRYPTO_COINS[ticker]['name']}...** ⏳")
-            
             analysis = await ai.analyze(ticker, is_premium)
             
             if analysis:
@@ -1460,13 +1254,8 @@ class IronGodBot:
 ⚡ **IRON GOD V10 - لحظه‌ای | آپدیت هر ۵ ثانیه**
 """
                 
-                kb = [
-                    [
-                        InlineKeyboardButton('🔄 دوباره', callback_data=f'coin_{ticker}'),
-                        InlineKeyboardButton('❌ بستن', callback_data='close')
-                    ]
-                ]
-                
+                kb = [[InlineKeyboardButton('🔄 دوباره', callback_data=f'coin_{ticker}'),
+                       InlineKeyboardButton('❌ بستن', callback_data='close')]]
                 await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb))
             else:
                 await query.edit_message_text("❌ **خطا در تحلیل!**")
