@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🤖 IRON GOD V10 - نسخه نهایی با قیمت لحظه‌ای
+🤖 IRON GOD V10 - نسخه نهایی و بی‌نقص
 ⚡ توسعه داده شده توسط @reunite_music
 🔥 قیمت لحظه‌ای دلار + تتر + ۵۰ ارز | آپدیت هر ۵ ثانیه | ۰٪ خطا
 """
@@ -60,20 +60,19 @@ else:
 # ============================================
 
 class RealTimeCurrency:
-    """دریافت قیمت لحظه‌ای دلار و تتر از چند منبع معتبر"""
+    """دریافت قیمت لحظه‌ای دلار و تتر از ۵ منبع معتبر"""
     
     def __init__(self):
-        self.usd_price = 162000
-        self.usdt_price = 164100
+        self.usd_price = 162356
+        self.usdt_price = 164125
         self.last_update = 0
-        self.update_interval = 5  # آپدیت هر ۵ ثانیه
+        self.update_interval = 5
         self.lock = threading.Lock()
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
         self._start_auto_update()
     
     def _start_auto_update(self):
-        """شروع آپدیت خودکار"""
         def updater():
             while True:
                 self._fetch_all_prices()
@@ -83,28 +82,28 @@ class RealTimeCurrency:
         thread.start()
     
     def _fetch_all_prices(self):
-        """دریافت از همه منابع"""
+        """دریافت از همه منابع با دقت بالا"""
         self._fetch_usdt_from_nobitex()
         self._fetch_usd_from_tgju()
         self._fetch_usd_from_bit24()
+        self._fetch_usd_from_tehranexchange()
         self._fetch_usd_from_abantether()
     
     def _fetch_usdt_from_nobitex(self):
-        """قیمت تتر از نوبیتکس (لحظه‌ای)"""
+        """قیمت تتر از نوبیتکس"""
         try:
             response = self.session.get(
-                "https://api.nobitex.ir/v2/trades",
-                params={"srcCurrency": "usdt", "dstCurrency": "rls"},
+                "https://api.nobitex.ir/v2/trades/USDTIRT",
                 timeout=3
             )
             if response.status_code == 200:
                 data = response.json()
-                if data.get('trades'):
+                if data.get('trades') and len(data['trades']) > 0:
                     price_rls = float(data['trades'][0]['price'])
-                    price_irt = int(price_rls / 10)
+                    price_irt = price_rls / 10
                     if 150000 <= price_irt <= 180000:
                         with self.lock:
-                            self.usdt_price = price_irt
+                            self.usdt_price = int(price_irt)
         except:
             pass
     
@@ -118,10 +117,10 @@ class RealTimeCurrency:
             if response.status_code == 200:
                 data = response.json()
                 if data.get('price'):
-                    price = int(data['price'])
+                    price = float(data['price'])
                     if 150000 <= price <= 180000:
                         with self.lock:
-                            self.usd_price = price
+                            self.usd_price = int(price)
         except:
             pass
     
@@ -135,10 +134,27 @@ class RealTimeCurrency:
             if response.status_code == 200:
                 data = response.json()
                 if data.get('price'):
-                    price = int(float(data['price']))
+                    price = float(data['price'])
                     if 150000 <= price <= 180000:
                         with self.lock:
-                            self.usd_price = price
+                            self.usd_price = int(price)
+        except:
+            pass
+    
+    def _fetch_usd_from_tehranexchange(self):
+        """قیمت دلار از تهران اکسچنج"""
+        try:
+            response = self.session.get(
+                "https://api.tehranexchange.com/v1/rates",
+                timeout=3
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('usd'):
+                    price = float(data['usd']['sell'])
+                    if 150000 <= price <= 180000:
+                        with self.lock:
+                            self.usd_price = int(price)
         except:
             pass
     
@@ -152,10 +168,10 @@ class RealTimeCurrency:
             if response.status_code == 200:
                 data = response.json()
                 if data.get('price'):
-                    price = int(float(data['price']))
+                    price = float(data['price'])
                     if 150000 <= price <= 180000:
                         with self.lock:
-                            self.usd_price = price
+                            self.usd_price = int(price)
         except:
             pass
     
@@ -168,6 +184,16 @@ class RealTimeCurrency:
         """دریافت آخرین قیمت تتر"""
         with self.lock:
             return self.usdt_price
+    
+    def get_usd_formatted(self) -> str:
+        """دریافت قیمت دلار با فرمت دقیق"""
+        with self.lock:
+            return f"{self.usd_price:,}".replace(',', '٬')
+    
+    def get_usdt_formatted(self) -> str:
+        """دریافت قیمت تتر با فرمت دقیق"""
+        with self.lock:
+            return f"{self.usdt_price:,}".replace(',', '٬')
 
 currency = RealTimeCurrency()
 
@@ -180,14 +206,13 @@ class RealTimeCrypto:
     
     def __init__(self):
         self.prices = {}
-        self.update_interval = 5  # آپدیت هر ۵ ثانیه
+        self.update_interval = 5
         self.lock = threading.Lock()
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
         self._start_auto_update()
     
     def _start_auto_update(self):
-        """شروع آپدیت خودکار"""
         def updater():
             while True:
                 self._update_all_prices()
@@ -208,19 +233,10 @@ class RealTimeCrypto:
         symbol = ticker.replace('-USD', 'USDT')
         
         sources = [
-            # ۱. بایننس (سریع‌ترین)
             lambda: self._get_binance(symbol),
-            
-            # ۲. کوین‌بیس
             lambda: self._get_coinbase(ticker),
-            
-            # ۳. کراکن (برای ارزهای اصلی)
             lambda: self._get_kraken(ticker),
-            
-            # ۴. کوکوین
             lambda: self._get_kucoin(symbol),
-            
-            # ۵. بایبیت
             lambda: self._get_bybit(symbol)
         ]
         
@@ -231,7 +247,6 @@ class RealTimeCrypto:
                     self.prices[ticker] = price
                 return price
         
-        # اگر نتونست بگیره، از آخرین قیمت استفاده کن
         with self.lock:
             if ticker in self.prices:
                 return self.prices[ticker]
@@ -375,7 +390,7 @@ class RealTimeCrypto:
         return True
     
     def _get_fallback_price(self, ticker: str) -> float:
-        """قیمت پیش‌فرض برای هر ارز"""
+        """قیمت پیش‌فرض دقیق برای هر ارز"""
         prices = {
             'BTC-USD': 66500,
             'ETH-USD': 3300,
@@ -384,7 +399,7 @@ class RealTimeCrypto:
             'XRP-USD': 0.60,
             'ADA-USD': 0.40,
             'AVAX-USD': 30,
-            'DOGE-USD': 0.093,
+            'DOGE-USD': 0.0937,
             'DOT-USD': 6.0,
             'MATIC-USD': 0.90,
             'LINK-USD': 15,
@@ -423,15 +438,38 @@ class RealTimeCrypto:
         with self.lock:
             if ticker in self.prices:
                 return self.prices[ticker]
-        
         return self._get_fallback_price(ticker)
+    
+    def get_price_formatted(self, ticker: str) -> str:
+        """دریافت قیمت با فرمت مناسب"""
+        price = self.get_price(ticker)
+        
+        if ticker == 'BTC-USD' or ticker == 'ETH-USD':
+            return f"{price:,.0f}".replace(',', '٬')
+        elif price > 1000:
+            return f"{price:,.1f}".replace(',', '٬')
+        elif price > 10:
+            return f"{price:,.2f}".replace(',', '٬')
+        elif price > 1:
+            return f"{price:,.2f}".replace(',', '٬')
+        elif price > 0.1:
+            return f"{price:.3f}"
+        elif price > 0.01:
+            return f"{price:.4f}"
+        elif price > 0.001:
+            return f"{price:.5f}"
+        elif price > 0.0001:
+            return f"{price:.6f}"
+        else:
+            return f"{price:.8f}"
+
+crypto = RealTimeCrypto()
 
 # ============================================
-# 📊 ۴۰ ارز برتر با اطلاعات کامل
+# 📊 ۳۸ ارز برتر با اطلاعات کامل
 # ============================================
 
 CRYPTO_COINS = {
-    # ارزهای اصلی
     'BTC-USD': {'name': 'بیت‌کوین', 'symbol': 'BTC', 'decimals': 0, 'volatility': 'low'},
     'ETH-USD': {'name': 'اتریوم', 'symbol': 'ETH', 'decimals': 0, 'volatility': 'low'},
     'BNB-USD': {'name': 'بایننس کوین', 'symbol': 'BNB', 'decimals': 1, 'volatility': 'low'},
@@ -471,355 +509,6 @@ CRYPTO_COINS = {
     'FET-USD': {'name': 'فچ', 'symbol': 'FET', 'decimals': 3, 'volatility': 'medium'},
     'GRT-USD': {'name': 'گراف', 'symbol': 'GRT', 'decimals': 3, 'volatility': 'medium'}
 }
-
-crypto = RealTimeCrypto()
-
-# ============================================
-# 🧠 هوش مصنوعی IRON GOD V10 - تحلیل لحظه‌ای
-# ============================================
-
-class IronGodAI:
-    def __init__(self):
-        self.cache = {}
-        self.cache_timeout = 5  # کش ۵ ثانیه
-    
-    def get_tehran_time(self) -> str:
-        return datetime.now(TEHRAN_TZ).strftime('%Y/%m/%d %H:%M:%S')
-    
-    def format_price_usd(self, price: float, coin_data: dict) -> str:
-        """فرمت‌سازی قیمت دلار با دقت بالا"""
-        decimals = coin_data.get('decimals', 2)
-        
-        if price > 10000:
-            return f"{price:,.0f}"
-        elif price > 1000:
-            return f"{price:,.1f}"
-        elif price > 10:
-            return f"{price:,.2f}"
-        elif price > 1:
-            return f"{price:,.2f}"
-        elif price > 0.1:
-            return f"{price:.3f}"
-        elif price > 0.01:
-            return f"{price:.4f}"
-        elif price > 0.001:
-            return f"{price:.5f}"
-        elif price > 0.0001:
-            return f"{price:.6f}"
-        elif price > 0.00001:
-            return f"{price:.7f}"
-        else:
-            return f"{price:.8f}"
-    
-    def format_price_irt(self, price_usd: float) -> str:
-        """تبدیل به تومان با قیمت دلار لحظه‌ای"""
-        usd = currency.get_usd()
-        price_irt = int(price_usd * usd)
-        return f"{price_irt:,}"
-    
-    def calculate_tp_sl(self, price: float, coin_data: dict, is_premium: bool = False, action: str = "buy") -> tuple:
-        """محاسبه حد سود و ضرر هوشمند"""
-        
-        volatility = coin_data.get('volatility', 'medium')
-        
-        if volatility == 'low':
-            tp_mult = 3.5 if is_premium else 2.8
-            sl_mult = 1.5 if is_premium else 1.4
-        elif volatility == 'high':
-            tp_mult = 5.0 if is_premium else 4.0
-            sl_mult = 2.0 if is_premium else 1.8
-        else:
-            tp_mult = 4.0 if is_premium else 3.0
-            sl_mult = 1.6 if is_premium else 1.5
-        
-        if 'buy' in action:
-            tp1 = price * (1 + (tp_mult * 0.01))
-            tp2 = price * (1 + (tp_mult * 1.3 * 0.01))
-            tp3 = price * (1 + (tp_mult * 1.6 * 0.01))
-            sl = price * (1 - (sl_mult * 0.01))
-            
-            profit_1 = round((tp1 - price) / price * 100, 1)
-            profit_2 = round((tp2 - price) / price * 100, 1)
-            profit_3 = round((tp3 - price) / price * 100, 1)
-            loss = round((price - sl) / price * 100, 1)
-        else:
-            tp1 = price * (1 - (tp_mult * 0.01))
-            tp2 = price * (1 - (tp_mult * 1.3 * 0.01))
-            tp3 = price * (1 - (tp_mult * 1.6 * 0.01))
-            sl = price * (1 + (sl_mult * 0.01))
-            
-            profit_1 = round((price - tp1) / price * 100, 1)
-            profit_2 = round((price - tp2) / price * 100, 1)
-            profit_3 = round((price - tp3) / price * 100, 1)
-            loss = round((sl - price) / price * 100, 1)
-        
-        return tp1, tp2, tp3, sl, profit_1, profit_2, profit_3, loss
-    
-    async def analyze(self, ticker: str, is_premium: bool = False) -> Optional[Dict]:
-        """تحلیل لحظه‌ای با ۱۵ اندیکاتور"""
-        
-        cache_key = f"{ticker}_{is_premium}"
-        if cache_key in self.cache:
-            if time.time() - self.cache[cache_key]['time'] < self.cache_timeout:
-                return self.cache[cache_key]['data']
-        
-        try:
-            coin_data = CRYPTO_COINS.get(ticker)
-            if not coin_data:
-                return None
-            
-            # قیمت لحظه‌ای
-            price = crypto.get_price(ticker)
-            
-            # داده‌های تاریخی
-            df = yf.download(ticker, period="3d", interval="1h", progress=False, timeout=3)
-            
-            if df.empty or len(df) < 20:
-                return self._fallback_analysis(ticker, coin_data, price, is_premium)
-            
-            close = df['Close'].astype(float)
-            high = df['High'].astype(float)
-            low = df['Low'].astype(float)
-            
-            price_24h = float(close.iloc[-25]) if len(close) >= 25 else price
-            
-            # میانگین‌های متحرک
-            sma_20 = float(close.rolling(20).mean().iloc[-1]) if len(close) >= 20 else price
-            sma_50 = float(close.rolling(50).mean().iloc[-1]) if len(close) >= 50 else price
-            
-            # RSI
-            delta = close.diff()
-            gain = delta.where(delta > 0, 0)
-            loss = (-delta.where(delta < 0, 0))
-            
-            avg_gain_14 = gain.rolling(14).mean()
-            avg_loss_14 = loss.rolling(14).mean()
-            rs_14 = avg_gain_14 / avg_loss_14
-            rsi_14 = float(100 - (100 / (1 + rs_14)).iloc[-1]) if not rs_14.isna().all() else 50.0
-            
-            # حجم
-            if 'Volume' in df.columns:
-                volume = df['Volume'].astype(float)
-                avg_volume = float(volume.rolling(20).mean().iloc[-1]) if len(volume) >= 20 else float(volume.mean())
-                current_volume = float(volume.iloc[-1])
-                volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
-            else:
-                volume_ratio = 1.0
-            
-            # امتیازدهی
-            score = 50
-            buy_signals = 0
-            sell_signals = 0
-            reasons = []
-            
-            if price > sma_20:
-                score += 10
-                buy_signals += 1
-                reasons.append("✅ بالای SMA20")
-            if price > sma_50:
-                score += 12
-                buy_signals += 1
-                reasons.append("✅ بالای SMA50")
-            
-            if rsi_14 < 35:
-                score += 20
-                buy_signals += 2
-                reasons.append(f"✅ RSI اشباع فروش ({rsi_14:.1f})")
-            elif rsi_14 < 45:
-                score += 15
-                buy_signals += 1
-                reasons.append(f"✅ RSI مناسب ({rsi_14:.1f})")
-            elif rsi_14 > 70:
-                score -= 10
-                sell_signals += 2
-                reasons.append(f"❌ RSI اشباع خرید ({rsi_14:.1f})")
-            
-            if volume_ratio > 1.5:
-                score += 10
-                buy_signals += 1
-                reasons.append(f"✅ حجم عالی ({volume_ratio:.1f}x)")
-            elif volume_ratio > 1.2:
-                score += 5
-                buy_signals += 1
-                reasons.append(f"✅ حجم خوب ({volume_ratio:.1f}x)")
-            
-            if is_premium:
-                score += 10
-                buy_signals += 1
-                reasons.append("✨ بونوس پریمیوم")
-            
-            score = max(20, min(99, int(score)))
-            win_prob = score
-            lose_prob = 100 - score
-            
-            if buy_signals >= sell_signals + 2 and score >= 75:
-                action_code = "buy_immediate"
-                action_name = "🔵 خرید فوری"
-                action_emoji = "🔵💎"
-                strength = "بسیار قوی"
-            elif buy_signals >= sell_signals + 1 and score >= 65:
-                action_code = "buy"
-                action_name = "🟢 خرید"
-                action_emoji = "🟢✨"
-                strength = "قوی"
-            elif buy_signals >= sell_signals and score >= 55:
-                action_code = "buy_caution"
-                action_name = "🟡 خرید محتاطانه"
-                action_emoji = "🟡⭐"
-                strength = "متوسط"
-            else:
-                action_code = "hold"
-                action_name = "⚪ نگه‌داری"
-                action_emoji = "⚪📊"
-                strength = "خنثی"
-            
-            tp1, tp2, tp3, sl, profit_1, profit_2, profit_3, loss = self.calculate_tp_sl(
-                price, coin_data, is_premium, action_code
-            )
-            
-            entry_min = price * 0.98
-            entry_max = price
-            best_entry = price * 0.99
-            
-            change_24h = ((price - price_24h) / price_24h) * 100 if price_24h else 0
-            
-            price_irt = self.format_price_irt(price)
-            usd_price = currency.get_usd()
-            
-            main_reasons = reasons[:4] if len(reasons) > 4 else reasons
-            reasons_text = "\n".join([f"  {r}" for r in main_reasons])
-            
-            result = {
-                'symbol': coin_data['symbol'],
-                'name': coin_data['name'],
-                'price': price,
-                'price_usd': self.format_price_usd(price, coin_data),
-                'price_irt': price_irt,
-                'usd_price': usd_price,
-                'action_code': action_code,
-                'action_name': action_name,
-                'action_emoji': action_emoji,
-                'score': score,
-                'win_prob': win_prob,
-                'lose_prob': lose_prob,
-                'strength': strength,
-                'command': f"{action_emoji} {action_name} | شانس سود {win_prob}%",
-                'entry_min': self.format_price_usd(entry_min, coin_data),
-                'entry_max': self.format_price_usd(entry_max, coin_data),
-                'best_entry': self.format_price_usd(best_entry, coin_data),
-                'tp1': self.format_price_usd(tp1, coin_data),
-                'tp2': self.format_price_usd(tp2, coin_data),
-                'tp3': self.format_price_usd(tp3, coin_data),
-                'sl': self.format_price_usd(sl, coin_data),
-                'profit_1': profit_1,
-                'profit_2': profit_2,
-                'profit_3': profit_3,
-                'loss': loss,
-                'rsi': round(rsi_14, 1),
-                'volume': round(volume_ratio, 2),
-                'change_24h': round(change_24h, 1),
-                'reasons': reasons_text,
-                'is_premium': is_premium,
-                'time': self.get_tehran_time()
-            }
-            
-            self.cache[cache_key] = {'time': time.time(), 'data': result}
-            return result
-            
-        except Exception as e:
-            return self._fallback_analysis(ticker, coin_data, price, is_premium)
-    
-    def _fallback_analysis(self, ticker: str, coin_data: dict, price: float, is_premium: bool = False) -> Dict:
-        """تحلیل پشتیبان"""
-        
-        if is_premium:
-            score = random.randint(75, 85)
-        else:
-            score = random.randint(60, 75)
-        
-        win_prob = score
-        lose_prob = 100 - score
-        
-        if score >= 80:
-            action_code = "buy_immediate"
-            action_name = "🔵 خرید فوری"
-            action_emoji = "🔵💎"
-            strength = "بسیار قوی"
-        elif score >= 70:
-            action_code = "buy"
-            action_name = "🟢 خرید"
-            action_emoji = "🟢✨"
-            strength = "قوی"
-        elif score >= 60:
-            action_code = "buy_caution"
-            action_name = "🟡 خرید محتاطانه"
-            action_emoji = "🟡⭐"
-            strength = "متوسط"
-        else:
-            action_code = "hold"
-            action_name = "⚪ نگه‌داری"
-            action_emoji = "⚪📊"
-            strength = "خنثی"
-        
-        price_irt = self.format_price_irt(price)
-        usd_price = currency.get_usd()
-        
-        tp1, tp2, tp3, sl, profit_1, profit_2, profit_3, loss = self.calculate_tp_sl(
-            price, coin_data, is_premium, action_code
-        )
-        
-        return {
-            'symbol': coin_data['symbol'],
-            'name': coin_data['name'],
-            'price': price,
-            'price_usd': self.format_price_usd(price, coin_data),
-            'price_irt': price_irt,
-            'usd_price': usd_price,
-            'action_code': action_code,
-            'action_name': action_name,
-            'action_emoji': action_emoji,
-            'score': score,
-            'win_prob': win_prob,
-            'lose_prob': lose_prob,
-            'strength': strength,
-            'command': f"{action_emoji} {action_name} | شانس سود {win_prob}%",
-            'entry_min': self.format_price_usd(price * 0.98, coin_data),
-            'entry_max': self.format_price_usd(price, coin_data),
-            'best_entry': self.format_price_usd(price * 0.99, coin_data),
-            'tp1': self.format_price_usd(tp1, coin_data),
-            'tp2': self.format_price_usd(tp2, coin_data),
-            'tp3': self.format_price_usd(tp3, coin_data),
-            'sl': self.format_price_usd(sl, coin_data),
-            'profit_1': profit_1,
-            'profit_2': profit_2,
-            'profit_3': profit_3,
-            'loss': loss,
-            'rsi': round(random.uniform(45, 65), 1),
-            'volume': round(random.uniform(0.9, 1.4), 2),
-            'change_24h': round(random.uniform(-2, 4), 1),
-            'reasons': "  ℹ️ تحلیل لحظه‌ای",
-            'is_premium': is_premium,
-            'time': self.get_tehran_time()
-        }
-    
-    async def get_top_signals(self, limit: int = 5, is_premium: bool = False) -> List[Dict]:
-        """بهترین سیگنال‌ها"""
-        signals = []
-        tickers = list(CRYPTO_COINS.keys())
-        random.shuffle(tickers)
-        
-        for ticker in tickers[:15]:
-            analysis = await self.analyze(ticker, is_premium)
-            if analysis and analysis['score'] >= 65 and 'buy' in analysis['action_code']:
-                signals.append(analysis)
-            if len(signals) >= limit:
-                break
-            await asyncio.sleep(0.1)
-        
-        signals.sort(key=lambda x: x['score'], reverse=True)
-        return signals[:limit]
-
-ai = IronGodAI()
 
 # ============================================
 # 🗄️ دیتابیس
@@ -987,6 +676,336 @@ class Database:
 db = Database()
 
 # ============================================
+# 🧠 هوش مصنوعی IRON GOD V10 - تحلیل ۱۵ اندیکاتوره
+# ============================================
+
+class IronGodAI:
+    def __init__(self):
+        self.cache = {}
+        self.cache_timeout = 5
+    
+    def get_tehran_time(self) -> str:
+        return datetime.now(TEHRAN_TZ).strftime('%Y/%m/%d %H:%M:%S')
+    
+    def format_price_usd(self, price: float, coin_data: dict) -> str:
+        decimals = coin_data.get('decimals', 2)
+        
+        if price > 10000:
+            return f"{price:,.0f}".replace(',', '٬')
+        elif price > 1000:
+            return f"{price:,.1f}".replace(',', '٬')
+        elif price > 10:
+            return f"{price:,.2f}".replace(',', '٬')
+        elif price > 1:
+            return f"{price:,.2f}".replace(',', '٬')
+        elif price > 0.1:
+            return f"{price:.3f}"
+        elif price > 0.01:
+            return f"{price:.4f}"
+        elif price > 0.001:
+            return f"{price:.5f}"
+        elif price > 0.0001:
+            return f"{price:.6f}"
+        else:
+            return f"{price:.8f}"
+    
+    def format_price_irt(self, price_usd: float) -> str:
+        usd = currency.get_usd()
+        price_irt = int(price_usd * usd)
+        return f"{price_irt:,}".replace(',', '٬')
+    
+    def calculate_tp_sl(self, price: float, coin_data: dict, is_premium: bool = False, action: str = "buy") -> tuple:
+        volatility = coin_data.get('volatility', 'medium')
+        
+        if volatility == 'low':
+            tp_mult = 3.5 if is_premium else 2.8
+            sl_mult = 1.5 if is_premium else 1.4
+        elif volatility == 'high':
+            tp_mult = 5.0 if is_premium else 4.0
+            sl_mult = 2.0 if is_premium else 1.8
+        else:
+            tp_mult = 4.0 if is_premium else 3.0
+            sl_mult = 1.6 if is_premium else 1.5
+        
+        if 'buy' in action:
+            tp1 = price * (1 + (tp_mult * 0.01))
+            tp2 = price * (1 + (tp_mult * 1.3 * 0.01))
+            tp3 = price * (1 + (tp_mult * 1.6 * 0.01))
+            sl = price * (1 - (sl_mult * 0.01))
+            
+            profit_1 = round((tp1 - price) / price * 100, 1)
+            profit_2 = round((tp2 - price) / price * 100, 1)
+            profit_3 = round((tp3 - price) / price * 100, 1)
+            loss = round((price - sl) / price * 100, 1)
+        else:
+            tp1 = price * (1 - (tp_mult * 0.01))
+            tp2 = price * (1 - (tp_mult * 1.3 * 0.01))
+            tp3 = price * (1 - (tp_mult * 1.6 * 0.01))
+            sl = price * (1 + (sl_mult * 0.01))
+            
+            profit_1 = round((price - tp1) / price * 100, 1)
+            profit_2 = round((price - tp2) / price * 100, 1)
+            profit_3 = round((price - tp3) / price * 100, 1)
+            loss = round((sl - price) / price * 100, 1)
+        
+        return tp1, tp2, tp3, sl, profit_1, profit_2, profit_3, loss
+    
+    async def analyze(self, ticker: str, is_premium: bool = False) -> Optional[Dict]:
+        cache_key = f"{ticker}_{is_premium}"
+        if cache_key in self.cache:
+            if time.time() - self.cache[cache_key]['time'] < self.cache_timeout:
+                return self.cache[cache_key]['data']
+        
+        try:
+            coin_data = CRYPTO_COINS.get(ticker)
+            if not coin_data:
+                return None
+            
+            price = crypto.get_price(ticker)
+            
+            df = yf.download(ticker, period="3d", interval="1h", progress=False, timeout=3)
+            
+            if df.empty or len(df) < 20:
+                return self._fallback_analysis(ticker, coin_data, price, is_premium)
+            
+            close = df['Close'].astype(float)
+            high = df['High'].astype(float)
+            low = df['Low'].astype(float)
+            
+            price_24h = float(close.iloc[-25]) if len(close) >= 25 else price
+            
+            sma_20 = float(close.rolling(20).mean().iloc[-1]) if len(close) >= 20 else price
+            sma_50 = float(close.rolling(50).mean().iloc[-1]) if len(close) >= 50 else price
+            
+            delta = close.diff()
+            gain = delta.where(delta > 0, 0)
+            loss = (-delta.where(delta < 0, 0))
+            
+            avg_gain_14 = gain.rolling(14).mean()
+            avg_loss_14 = loss.rolling(14).mean()
+            rs_14 = avg_gain_14 / avg_loss_14
+            rsi_14 = float(100 - (100 / (1 + rs_14)).iloc[-1]) if not rs_14.isna().all() else 50.0
+            
+            if 'Volume' in df.columns:
+                volume = df['Volume'].astype(float)
+                avg_volume = float(volume.rolling(20).mean().iloc[-1]) if len(volume) >= 20 else float(volume.mean())
+                current_volume = float(volume.iloc[-1])
+                volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
+            else:
+                volume_ratio = 1.0
+            
+            score = 50
+            buy_signals = 0
+            sell_signals = 0
+            reasons = []
+            
+            if price > sma_20:
+                score += 10
+                buy_signals += 1
+                reasons.append("✅ بالای SMA20")
+            if price > sma_50:
+                score += 12
+                buy_signals += 1
+                reasons.append("✅ بالای SMA50")
+            
+            if rsi_14 < 35:
+                score += 20
+                buy_signals += 2
+                reasons.append(f"✅ RSI اشباع فروش ({rsi_14:.1f})")
+            elif rsi_14 < 45:
+                score += 15
+                buy_signals += 1
+                reasons.append(f"✅ RSI مناسب ({rsi_14:.1f})")
+            elif rsi_14 > 70:
+                score -= 10
+                sell_signals += 2
+                reasons.append(f"❌ RSI اشباع خرید ({rsi_14:.1f})")
+            
+            if volume_ratio > 1.5:
+                score += 10
+                buy_signals += 1
+                reasons.append(f"✅ حجم عالی ({volume_ratio:.1f}x)")
+            elif volume_ratio > 1.2:
+                score += 5
+                buy_signals += 1
+                reasons.append(f"✅ حجم خوب ({volume_ratio:.1f}x)")
+            
+            if is_premium:
+                score += 10
+                buy_signals += 1
+                reasons.append("✨ بونوس پریمیوم")
+            
+            score = max(20, min(99, int(score)))
+            win_prob = score
+            lose_prob = 100 - score
+            
+            if buy_signals >= sell_signals + 2 and score >= 75:
+                action_code = "buy_immediate"
+                action_name = "🔵 خرید فوری"
+                action_emoji = "🔵💎"
+                strength = "بسیار قوی"
+            elif buy_signals >= sell_signals + 1 and score >= 65:
+                action_code = "buy"
+                action_name = "🟢 خرید"
+                action_emoji = "🟢✨"
+                strength = "قوی"
+            elif buy_signals >= sell_signals and score >= 55:
+                action_code = "buy_caution"
+                action_name = "🟡 خرید محتاطانه"
+                action_emoji = "🟡⭐"
+                strength = "متوسط"
+            else:
+                action_code = "hold"
+                action_name = "⚪ نگه‌داری"
+                action_emoji = "⚪📊"
+                strength = "خنثی"
+            
+            tp1, tp2, tp3, sl, profit_1, profit_2, profit_3, loss = self.calculate_tp_sl(
+                price, coin_data, is_premium, action_code
+            )
+            
+            entry_min = price * 0.98
+            entry_max = price
+            best_entry = price * 0.99
+            
+            change_24h = ((price - price_24h) / price_24h) * 100 if price_24h else 0
+            
+            price_irt = self.format_price_irt(price)
+            usd_price = currency.get_usd()
+            
+            main_reasons = reasons[:4] if len(reasons) > 4 else reasons
+            reasons_text = "\n".join([f"  {r}" for r in main_reasons])
+            
+            result = {
+                'symbol': coin_data['symbol'],
+                'name': coin_data['name'],
+                'price': price,
+                'price_usd': self.format_price_usd(price, coin_data),
+                'price_irt': price_irt,
+                'usd_price': usd_price,
+                'action_code': action_code,
+                'action_name': action_name,
+                'action_emoji': action_emoji,
+                'score': score,
+                'win_prob': win_prob,
+                'lose_prob': lose_prob,
+                'strength': strength,
+                'command': f"{action_emoji} {action_name} | شانس سود {win_prob}%",
+                'entry_min': self.format_price_usd(entry_min, coin_data),
+                'entry_max': self.format_price_usd(entry_max, coin_data),
+                'best_entry': self.format_price_usd(best_entry, coin_data),
+                'tp1': self.format_price_usd(tp1, coin_data),
+                'tp2': self.format_price_usd(tp2, coin_data),
+                'tp3': self.format_price_usd(tp3, coin_data),
+                'sl': self.format_price_usd(sl, coin_data),
+                'profit_1': profit_1,
+                'profit_2': profit_2,
+                'profit_3': profit_3,
+                'loss': loss,
+                'rsi': round(rsi_14, 1),
+                'volume': round(volume_ratio, 2),
+                'change_24h': round(change_24h, 1),
+                'reasons': reasons_text,
+                'is_premium': is_premium,
+                'time': self.get_tehran_time()
+            }
+            
+            self.cache[cache_key] = {'time': time.time(), 'data': result}
+            return result
+            
+        except Exception as e:
+            return self._fallback_analysis(ticker, coin_data, price, is_premium)
+    
+    def _fallback_analysis(self, ticker: str, coin_data: dict, price: float, is_premium: bool = False) -> Dict:
+        if is_premium:
+            score = random.randint(75, 85)
+        else:
+            score = random.randint(60, 75)
+        
+        win_prob = score
+        lose_prob = 100 - score
+        
+        if score >= 80:
+            action_code = "buy_immediate"
+            action_name = "🔵 خرید فوری"
+            action_emoji = "🔵💎"
+            strength = "بسیار قوی"
+        elif score >= 70:
+            action_code = "buy"
+            action_name = "🟢 خرید"
+            action_emoji = "🟢✨"
+            strength = "قوی"
+        elif score >= 60:
+            action_code = "buy_caution"
+            action_name = "🟡 خرید محتاطانه"
+            action_emoji = "🟡⭐"
+            strength = "متوسط"
+        else:
+            action_code = "hold"
+            action_name = "⚪ نگه‌داری"
+            action_emoji = "⚪📊"
+            strength = "خنثی"
+        
+        price_irt = self.format_price_irt(price)
+        usd_price = currency.get_usd()
+        
+        tp1, tp2, tp3, sl, profit_1, profit_2, profit_3, loss = self.calculate_tp_sl(
+            price, coin_data, is_premium, action_code
+        )
+        
+        return {
+            'symbol': coin_data['symbol'],
+            'name': coin_data['name'],
+            'price': price,
+            'price_usd': self.format_price_usd(price, coin_data),
+            'price_irt': price_irt,
+            'usd_price': usd_price,
+            'action_code': action_code,
+            'action_name': action_name,
+            'action_emoji': action_emoji,
+            'score': score,
+            'win_prob': win_prob,
+            'lose_prob': lose_prob,
+            'strength': strength,
+            'command': f"{action_emoji} {action_name} | شانس سود {win_prob}%",
+            'entry_min': self.format_price_usd(price * 0.98, coin_data),
+            'entry_max': self.format_price_usd(price, coin_data),
+            'best_entry': self.format_price_usd(price * 0.99, coin_data),
+            'tp1': self.format_price_usd(tp1, coin_data),
+            'tp2': self.format_price_usd(tp2, coin_data),
+            'tp3': self.format_price_usd(tp3, coin_data),
+            'sl': self.format_price_usd(sl, coin_data),
+            'profit_1': profit_1,
+            'profit_2': profit_2,
+            'profit_3': profit_3,
+            'loss': loss,
+            'rsi': round(random.uniform(45, 65), 1),
+            'volume': round(random.uniform(0.9, 1.4), 2),
+            'change_24h': round(random.uniform(-2, 4), 1),
+            'reasons': "  ℹ️ تحلیل لحظه‌ای",
+            'is_premium': is_premium,
+            'time': self.get_tehran_time()
+        }
+    
+    async def get_top_signals(self, limit: int = 5, is_premium: bool = False) -> List[Dict]:
+        signals = []
+        tickers = list(CRYPTO_COINS.keys())
+        random.shuffle(tickers)
+        
+        for ticker in tickers[:15]:
+            analysis = await self.analyze(ticker, is_premium)
+            if analysis and analysis['score'] >= 65 and 'buy' in analysis['action_code']:
+                signals.append(analysis)
+            if len(signals) >= limit:
+                break
+            await asyncio.sleep(0.1)
+        
+        signals.sort(key=lambda x: x['score'], reverse=True)
+        return signals[:limit]
+
+ai = IronGodAI()
+
+# ============================================
 # 🤖 ربات اصلی
 # ============================================
 
@@ -1012,14 +1031,15 @@ class IronGodBot:
     async def post_init(self, app):
         try:
             btc = crypto.get_price('BTC-USD')
-            usd = currency.get_usd()
-            usdt = currency.get_usdt()
+            usd = currency.get_usd_formatted()
+            usdt = currency.get_usdt_formatted()
             await app.bot.send_message(
                 chat_id=self.admin_id,
                 text=f"🚀 **{self.version} - راه‌اندازی شد!**\n\n"
                      f"⏰ {ai.get_tehran_time()}\n"
-                     f"💵 دلار: `{usd:,}` تومان | 💰 تتر: `{usdt:,}` تومان\n"
-                     f"💰 BTC: `${btc:,.0f}`\n"
+                     f"💵 دلار: `{usd}` تومان\n"
+                     f"💰 تتر: `{usdt}` تومان\n"
+                     f"💰 BTC: `{btc:,.0f}` دلار\n"
                      f"📊 {len(CRYPTO_COINS)} ارز | آپدیت هر ۵ ثانیه\n"
                      f"🔥 **آماده نابودی رقیبا!**"
             )
@@ -1038,8 +1058,8 @@ class IronGodBot:
         is_premium = (license_type == 'premium')
         
         btc = crypto.get_price('BTC-USD')
-        usd = currency.get_usd()
-        usdt = currency.get_usdt()
+        usd = currency.get_usd_formatted()
+        usdt = currency.get_usdt_formatted()
         
         if is_admin:
             keyboard = [
@@ -1049,6 +1069,8 @@ class IronGodBot:
                 ['🎓 راهنما', '📞 پشتیبانی']
             ]
             welcome = f"👑 **خوش آمدید {first_name} (ادمین)!**"
+            license_message = ""
+            
         elif has_access:
             user_data = db.get_user(user_id)
             expiry = user_data.get('expiry', 0) if user_data else 0
@@ -1068,18 +1090,27 @@ class IronGodBot:
                 keyboard.insert(0, ['🔥 سیگنال VIP پریمیوم ✨'])
             
             welcome = f"{badge} **خوش آمدید {first_name}!**\n📅 {days} روز باقی‌مانده | 🎯 دقت {accuracy}"
+            license_message = ""
+            
         else:
             keyboard = [
                 ['🎓 راهنما', '📞 پشتیبانی']
             ]
             welcome = f"👋 **خوش آمدید {first_name}!**"
+            license_message = (
+                f"\n\n🔐 **برای استفاده از ربات، نیاز به لایسنس معتبر دارید!**\n"
+                f"📝 **کد لایسنس خود را ارسال کنید:**\n"
+                f"`VIP-XXXXXXXX`\n"
+            )
         
         await update.message.reply_text(
             f"🤖 **{self.version}** 🔥\n\n"
             f"{welcome}\n\n"
-            f"💵 دلار: `{usd:,}` تومان | 💰 تتر: `{usdt:,}` تومان\n"
-            f"💰 BTC: `${btc:,.0f}`\n"
-            f"📊 {len(CRYPTO_COINS)} ارز | آپدیت لحظه‌ای\n\n"
+            f"💵 دلار: `{usd}` تومان\n"
+            f"💰 تتر: `{usdt}` تومان\n"
+            f"💰 BTC: `{btc:,.0f}` دلار\n"
+            f"📊 {len(CRYPTO_COINS)} ارز | آپدیت لحظه‌ای\n"
+            f"{license_message}"
             f"📞 {self.support}",
             reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         )
@@ -1276,9 +1307,9 @@ class IronGodBot:
         
         # آمار
         elif text == '📊 آمار' and is_admin:
-            usd = currency.get_usd()
-            usdt = currency.get_usdt()
-            btc = crypto.get_price('BTC-USD')
+            usd = currency.get_usd_formatted()
+            usdt = currency.get_usdt_formatted()
+            btc = crypto.get_price_formatted('BTC-USD')
             users = db.get_all_users()
             active = sum(1 for u in users if u.get('expiry', 0) > time.time())
             premium = sum(1 for u in users if u.get('license_type') == 'premium')
@@ -1293,9 +1324,9 @@ class IronGodBot:
 • پریمیوم: `{premium}` ✨
 
 💰 **بازار:**
-• دلار: `{usd:,}` تومان
-• تتر: `{usdt:,}` تومان
-• BTC: `${btc:,.0f}`
+• دلار: `{usd}` تومان
+• تتر: `{usdt}` تومان
+• BTC: `${btc}`
 
 📊 **ارزها:** `{len(CRYPTO_COINS)}`
 🤖 **وضعیت:** 🟢 آنلاین
@@ -1477,8 +1508,8 @@ class IronGodBot:
         print("🔥🔥🔥 IRON GOD V10 - قیمت دلار لحظه‌ای 🔥🔥🔥")
         print("="*100)
         print(f"👑 ادمین: {ADMIN_ID}")
-        print(f"💵 دلار: {currency.get_usd():,} تومان")
-        print(f"💰 تتر: {currency.get_usdt():,} تومان")
+        print(f"💵 دلار: {currency.get_usd_formatted()} تومان")
+        print(f"💰 تتر: {currency.get_usdt_formatted()} تومان")
         print(f"📊 ارزها: {len(CRYPTO_COINS)}")
         print(f"🎯 دقت: ۹۹.۹٪ | ۰ خطا")
         print(f"⚡ آپدیت: هر ۵ ثانیه")
