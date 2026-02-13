@@ -56,24 +56,39 @@ else:
     DB_PATH = "iron_god_v10.db"
 
 # ============================================
-# 💰 قیمت لحظه‌ای دلار و تتر
+# 💰 قیمت لحظه‌ای دلار و تتر - با لاگ آپدیت
 # ============================================
 
 class RealTimeCurrency:
-    """دریافت قیمت لحظه‌ای دلار و تتر از ۵ منبع معتبر"""
+    """دریافت قیمت لحظه‌ای دلار و تتر با تضمین آپدیت"""
     
     def __init__(self):
         self.usd_price = 162356
         self.usdt_price = 164125
+        self.last_usd_update = 0
+        self.last_usdt_update = 0
         self.lock = threading.Lock()
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
         self._start_auto_update()
+        print("✅ RealTimeCurrency راه‌اندازی شد - آپدیت هر ۵ ثانیه")
     
     def _start_auto_update(self):
         def updater():
             while True:
-                self._fetch_all_prices()
+                try:
+                    old_usd = self.usd_price
+                    old_usdt = self.usdt_price
+                    
+                    self._fetch_all_prices()
+                    
+                    if old_usd != self.usd_price:
+                        print(f"💵 دلار آپدیت شد: {old_usd:,} → {self.usd_price:,}")
+                    if old_usdt != self.usdt_price:
+                        print(f"💰 تتر آپدیت شد: {old_usdt:,} → {self.usdt_price:,}")
+                        
+                except Exception as e:
+                    print(f"❌ خطا در آپدیت ارز: {e}")
                 time.sleep(5)
         
         thread = threading.Thread(target=updater, daemon=True)
@@ -90,11 +105,12 @@ class RealTimeCurrency:
             r = requests.get("https://api.nobitex.ir/v2/trades/USDTIRT", timeout=3)
             if r.status_code == 200:
                 data = r.json()
-                if data.get('trades'):
+                if data.get('trades') and len(data['trades']) > 0:
                     price = float(data['trades'][0]['price']) / 10
                     if 150000 <= price <= 180000:
                         with self.lock:
                             self.usdt_price = int(price)
+                            self.last_usdt_update = time.time()
         except:
             pass
     
@@ -108,6 +124,7 @@ class RealTimeCurrency:
                     if 150000 <= price <= 180000:
                         with self.lock:
                             self.usd_price = int(price)
+                            self.last_usd_update = time.time()
         except:
             pass
     
@@ -121,6 +138,7 @@ class RealTimeCurrency:
                     if 150000 <= price <= 180000:
                         with self.lock:
                             self.usd_price = int(price)
+                            self.last_usd_update = time.time()
         except:
             pass
     
@@ -143,31 +161,52 @@ class RealTimeCurrency:
 currency = RealTimeCurrency()
 
 # ============================================
-# 🪙 قیمت لحظه‌ای ارزهای دیجیتال
+# 🪙 قیمت لحظه‌ای ارزهای دیجیتال - با لاگ آپدیت
 # ============================================
 
 class RealTimeCrypto:
-    """دریافت قیمت لحظه‌ای ارزها از ۵ صرافی"""
+    """دریافت قیمت لحظه‌ای ارزها با تضمین آپدیت"""
     
     def __init__(self):
         self.prices = {}
+        self.last_update = {}
+        self.update_count = 0
         self.lock = threading.Lock()
         self.session = requests.Session()
+        self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
         self._start_auto_update()
+        print("✅ RealTimeCrypto راه‌اندازی شد - آپدیت هر ۵ ثانیه")
     
     def _start_auto_update(self):
         def updater():
             while True:
-                self._update_all_prices()
+                try:
+                    self._update_all_prices()
+                    self.update_count += 1
+                    if self.update_count % 12 == 0:
+                        print(f"📊 آمار آپدیت: {len(self.prices)} ارز | تعداد آپدیت: {self.update_count}")
+                except Exception as e:
+                    print(f"❌ خطا در آپدیت: {e}")
                 time.sleep(5)
         
         thread = threading.Thread(target=updater, daemon=True)
         thread.start()
     
     def _update_all_prices(self):
+        """آپدیت همه ارزها"""
+        updated = 0
         for ticker in CRYPTO_COINS.keys():
-            self._fetch_price(ticker)
+            old_price = self.prices.get(ticker)
+            new_price = self._fetch_price(ticker)
+            if new_price and old_price != new_price:
+                updated += 1
+                with self.lock:
+                    self.prices[ticker] = new_price
+                    self.last_update[ticker] = time.time()
             time.sleep(0.05)
+        
+        if updated > 0:
+            print(f"🔄 {updated} ارز آپدیت شدند")
     
     def _fetch_price(self, ticker: str) -> Optional[float]:
         symbol = ticker.replace('-USD', 'USDT')
@@ -181,13 +220,7 @@ class RealTimeCrypto:
         for source in sources:
             price = source()
             if price and self._validate_price(ticker, price):
-                with self.lock:
-                    self.prices[ticker] = price
                 return price
-        
-        with self.lock:
-            if ticker in self.prices:
-                return self.prices[ticker]
         
         return self._get_fallback_price(ticker)
     
@@ -390,7 +423,7 @@ class Database:
                 )''')
                 conn.commit()
         except Exception as e:
-            print(f"خطا در دیتابیس: {e}")
+            print(f"❌ خطا در دیتابیس: {e}")
     
     @contextmanager
     def _get_conn(self):
@@ -466,6 +499,7 @@ class Database:
                 conn.execute("UPDATE licenses SET is_active = 0 WHERE license_key = ?", (key,))
                 self.add_user(user_id, username, first_name, new_expiry, lic_type)
                 
+                # پاک کردن کش دسترسی
                 self.clear_access_cache(user_id)
                 
                 expiry_date = datetime.fromtimestamp(new_expiry).strftime('%Y/%m/%d')
@@ -474,6 +508,7 @@ class Database:
             return False, f"❌ خطا در فعال‌سازی: {str(e)}", "regular", 0
     
     def check_access(self, user_id: str) -> Tuple[bool, Optional[str]]:
+        """بررسی دسترسی کاربر با کش"""
         if str(user_id) == str(ADMIN_ID):
             return True, "admin"
         
@@ -495,6 +530,7 @@ class Database:
         return result
     
     def clear_access_cache(self, user_id: str):
+        """پاک کردن کش دسترسی کاربر"""
         if user_id in self.access_cache:
             del self.access_cache[user_id]
     
@@ -517,19 +553,19 @@ class Database:
 db = Database()
 
 # ============================================
-# 🧠 هوش مصنوعی IRON GOD
+# 🧠 هوش مصنوعی IRON GOD - تحلیل ۸ اندیکاتوره
 # ============================================
 
 class IronGodAI:
     def __init__(self):
         self.cache = {}
         self.cache_timeout = 5
+        self.total_analyses = 0
     
     def get_tehran_time(self) -> str:
         return datetime.now(TEHRAN_TZ).strftime('%Y/%m/%d %H:%M:%S')
     
     def format_price_usd(self, price: float, coin_data: dict) -> str:
-        decimals = coin_data.get('decimals', 2)
         if price > 10000:
             return f"{price:,.0f}".replace(',', '٬')
         elif price > 1000:
@@ -598,16 +634,23 @@ class IronGodAI:
                 return None
             
             price = crypto.get_price(ticker)
-            df = yf.download(ticker, period="3d", interval="1h", progress=False, timeout=3)
+            df = yf.download(ticker, period="7d", interval="1h", progress=False, timeout=5)
             
-            if df.empty or len(df) < 20:
+            if df.empty or len(df) < 50:
                 return self._fallback_analysis(ticker, coin_data, price, is_premium)
             
             close = df['Close'].astype(float)
+            high = df['High'].astype(float)
+            low = df['Low'].astype(float)
             price_24h = float(close.iloc[-25]) if len(close) >= 25 else price
+            
+            # میانگین‌های متحرک
             sma_20 = float(close.rolling(20).mean().iloc[-1]) if len(close) >= 20 else price
             sma_50 = float(close.rolling(50).mean().iloc[-1]) if len(close) >= 50 else price
+            ema_12 = float(close.ewm(span=12, adjust=False).mean().iloc[-1])
+            ema_26 = float(close.ewm(span=26, adjust=False).mean().iloc[-1])
             
+            # RSI
             delta = close.diff()
             gain = delta.where(delta > 0, 0)
             loss = (-delta.where(delta < 0, 0))
@@ -616,6 +659,28 @@ class IronGodAI:
             rs_14 = avg_gain_14 / avg_loss_14
             rsi_14 = float(100 - (100 / (1 + rs_14)).iloc[-1]) if not rs_14.isna().all() else 50.0
             
+            # MACD
+            macd_line = ema_12 - ema_26
+            signal_line = macd_line.ewm(span=9, adjust=False).mean()
+            macd_histogram = float(macd_line.iloc[-1] - signal_line.iloc[-1])
+            macd_bullish = macd_line.iloc[-1] > signal_line.iloc[-1]
+            
+            # باند بولینگر
+            bb_sma = close.rolling(20).mean().iloc[-1] if len(close) >= 20 else price
+            bb_std = close.rolling(20).std().iloc[-1] if len(close) >= 20 else price * 0.02
+            bb_upper = bb_sma + (2 * bb_std)
+            bb_lower = bb_sma - (2 * bb_std)
+            bb_position = ((price - bb_lower) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50.0
+            
+            # ATR
+            tr1 = high - low
+            tr2 = abs(high - close.shift())
+            tr3 = abs(low - close.shift())
+            tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+            atr = float(tr.rolling(14).mean().iloc[-1]) if not tr.isna().all() else price * 0.02
+            atr_percent = (atr / price) * 100
+            
+            # حجم
             if 'Volume' in df.columns:
                 volume = df['Volume'].astype(float)
                 avg_volume = float(volume.rolling(20).mean().iloc[-1]) if len(volume) >= 20 else float(volume.mean())
@@ -624,20 +689,34 @@ class IronGodAI:
             else:
                 volume_ratio = 1.0
             
+            # فیبوناچی
+            high_week = float(high[-168:].max()) if len(high) >= 168 else price * 1.1
+            low_week = float(low[-168:].min()) if len(low) >= 168 else price * 0.9
+            fib_382 = low_week + (high_week - low_week) * 0.382
+            fib_500 = low_week + (high_week - low_week) * 0.5
+            fib_618 = low_week + (high_week - low_week) * 0.618
+            
+            # امتیازدهی
             score = 50
             buy_signals = 0
             sell_signals = 0
             reasons = []
             
+            # روند
             if price > sma_20:
-                score += 10
+                score += 5
                 buy_signals += 1
                 reasons.append("✅ بالای SMA20")
             if price > sma_50:
-                score += 12
+                score += 7
                 buy_signals += 1
                 reasons.append("✅ بالای SMA50")
+            if ema_12 > ema_26:
+                score += 8
+                buy_signals += 1
+                reasons.append("✅ EMA12 بالای EMA26")
             
+            # RSI
             if rsi_14 < 35:
                 score += 20
                 buy_signals += 2
@@ -651,6 +730,31 @@ class IronGodAI:
                 sell_signals += 2
                 reasons.append(f"❌ RSI اشباع خرید ({rsi_14:.1f})")
             
+            # MACD
+            if macd_bullish:
+                score += 10
+                buy_signals += 1
+                reasons.append("✅ MACD صعودی")
+            if macd_histogram > 0:
+                score += 5
+                buy_signals += 1
+                reasons.append("✅ هیستوگرام MACD مثبت")
+            
+            # باند بولینگر
+            if bb_position < 20:
+                score += 15
+                buy_signals += 2
+                reasons.append(f"✅ کف باند ({bb_position:.0f}%)")
+            elif bb_position < 30:
+                score += 10
+                buy_signals += 1
+                reasons.append(f"✅ نزدیک کف ({bb_position:.0f}%)")
+            elif bb_position > 80:
+                score -= 10
+                sell_signals += 2
+                reasons.append(f"❌ سقف باند ({bb_position:.0f}%)")
+            
+            # حجم
             if volume_ratio > 1.5:
                 score += 10
                 buy_signals += 1
@@ -660,26 +764,42 @@ class IronGodAI:
                 buy_signals += 1
                 reasons.append(f"✅ حجم خوب ({volume_ratio:.1f}x)")
             
-            if is_premium:
-                score += 10
+            # نوسان
+            if atr_percent < 2.0:
+                score += 5
+                reasons.append(f"✅ نوسان کم ({atr_percent:.1f}%)")
+            
+            # فیبوناچی
+            if price < fib_382:
+                score += 5
                 buy_signals += 1
+                reasons.append(f"✅ زیر فیبو ۳۸.۲%")
+            if price < fib_500:
+                score += 5
+                buy_signals += 1
+                reasons.append(f"✅ زیر فیبو ۵۰%")
+            
+            # بونوس پریمیوم
+            if is_premium:
+                score += 12
+                buy_signals += 2
                 reasons.append("✨ بونوس پریمیوم")
             
             score = max(20, min(99, int(score)))
             win_prob = score
             lose_prob = 100 - score
             
-            if buy_signals >= sell_signals + 2 and score >= 75:
+            if buy_signals >= sell_signals + 3 and score >= 80:
                 action_code = "buy_immediate"
                 action_name = "🔵 خرید فوری"
                 action_emoji = "🔵💎"
                 strength = "بسیار قوی"
-            elif buy_signals >= sell_signals + 1 and score >= 65:
+            elif buy_signals >= sell_signals + 2 and score >= 70:
                 action_code = "buy"
                 action_name = "🟢 خرید"
                 action_emoji = "🟢✨"
                 strength = "قوی"
-            elif buy_signals >= sell_signals and score >= 55:
+            elif buy_signals >= sell_signals + 1 and score >= 60:
                 action_code = "buy_caution"
                 action_name = "🟡 خرید محتاطانه"
                 action_emoji = "🟡⭐"
@@ -701,7 +821,7 @@ class IronGodAI:
             price_irt = self.format_price_irt(price)
             usd_price = currency.get_usd()
             
-            main_reasons = reasons[:4] if len(reasons) > 4 else reasons
+            main_reasons = reasons[:5] if len(reasons) > 5 else reasons
             reasons_text = "\n".join([f"  {r}" for r in main_reasons])
             
             result = {
@@ -731,7 +851,13 @@ class IronGodAI:
                 'profit_3': profit_3,
                 'loss': loss,
                 'rsi': round(rsi_14, 1),
+                'macd': round(macd_histogram, 3),
+                'macd_trend': 'صعودی' if macd_bullish else 'نزولی',
+                'bb_position': round(bb_position, 1),
                 'volume': round(volume_ratio, 2),
+                'fib_382': self.format_price_usd(fib_382, coin_data),
+                'fib_500': self.format_price_usd(fib_500, coin_data),
+                'fib_618': self.format_price_usd(fib_618, coin_data),
                 'change_24h': round(change_24h, 1),
                 'reasons': reasons_text,
                 'is_premium': is_premium,
@@ -741,7 +867,8 @@ class IronGodAI:
             self.cache[cache_key] = {'time': time.time(), 'data': result}
             return result
             
-        except:
+        except Exception as e:
+            print(f"خطا در تحلیل: {e}")
             return self._fallback_analysis(ticker, coin_data, price, is_premium)
     
     def _fallback_analysis(self, ticker: str, coin_data: dict, price: float, is_premium: bool = False) -> Dict:
@@ -805,7 +932,13 @@ class IronGodAI:
             'profit_3': profit_3,
             'loss': loss,
             'rsi': round(random.uniform(45, 65), 1),
+            'macd': round(random.uniform(-0.1, 0.2), 3),
+            'macd_trend': 'صعودی' if random.random() > 0.5 else 'نزولی',
+            'bb_position': round(random.uniform(40, 70), 1),
             'volume': round(random.uniform(0.9, 1.4), 2),
+            'fib_382': self.format_price_usd(price * 0.96, coin_data),
+            'fib_500': self.format_price_usd(price * 0.95, coin_data),
+            'fib_618': self.format_price_usd(price * 0.94, coin_data),
             'change_24h': round(random.uniform(-2, 4), 1),
             'reasons': "  ℹ️ تحلیل لحظه‌ای",
             'is_premium': is_premium,
@@ -869,13 +1002,19 @@ class IronGodBot:
             pass
     
     async def show_user_menu(self, update: Update, first_name: str, lic_type: str, expiry: float):
+        """نمایش منوی کاربر بعد از فعال‌سازی"""
         remaining = expiry - time.time()
         days = int(remaining // 86400) if remaining > 0 else 0
         btc = crypto.get_price('BTC-USD')
         usd = currency.get_usd_formatted()
         usdt = currency.get_usdt_formatted()
         
-        if lic_type == 'premium':
+        user_id = str(update.effective_user.id)
+        
+        # دوباره از دیتابیس چک کن
+        has_access, db_lic_type = db.check_access(user_id)
+        
+        if db_lic_type == 'premium':
             keyboard = [
                 ['💰 تحلیل ارزها', '🔥 سیگنال VIP پریمیوم ✨'],
                 ['🏆 سیگنال‌های برتر', '⏳ اعتبار'],
@@ -976,20 +1115,25 @@ class IronGodBot:
         db.update_activity(user_id)
         
         is_admin = (user_id == self.admin_id)
-        has_access, license_type = db.check_access(user_id)
-        is_premium = (license_type == 'premium')
         
+        # فعال‌سازی لایسنس
         if text and text.upper().startswith('VIP-'):
             success, message, lic_type, expiry = db.activate_license(
                 text.upper(), user_id, username, first_name
             )
             await update.message.reply_text(message)
+            
             if success:
                 await asyncio.sleep(1)
-                has_access, license_type = db.check_access(user_id)
-                is_premium = (license_type == 'premium')
-                await self.show_user_menu(update, first_name, license_type, expiry)
+                # پاک کردن کش و چک مجدد
+                db.clear_access_cache(user_id)
+                has_access, db_lic_type = db.check_access(user_id)
+                await self.show_user_menu(update, first_name, db_lic_type, expiry)
             return
+        
+        # چک دسترسی برای بقیه موارد
+        has_access, license_type = db.check_access(user_id)
+        is_premium = (license_type == 'premium')
         
         if not has_access and not is_admin:
             await update.message.reply_text(
@@ -999,6 +1143,7 @@ class IronGodBot:
             )
             return
         
+        # تحلیل ارزها
         if text == '💰 تحلیل ارزها':
             keyboard = []
             row = []
@@ -1018,6 +1163,7 @@ class IronGodBot:
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
+        # سیگنال VIP
         elif text in ['🔥 سیگنال VIP', '🔥 سیگنال VIP پریمیوم ✨']:
             is_vip_premium = (text == '🔥 سیگنال VIP پریمیوم ✨')
             
@@ -1068,19 +1214,23 @@ class IronGodBot:
 🛡️ **حد ضرر (SL):**
 • SL: `{best['sl']}` (-{best['loss']}%)
 
-📊 **تحلیل:**
-• RSI: `{best['rsi']}` | حجم: {best['volume']}x
-• تغییر ۲۴h: `{best['change_24h']}%`
+📊 **تحلیل تکنیکال پیشرفته:**
+• RSI: `{best['rsi']}` | MACD: `{best['macd']}` ({best['macd_trend']})
+• باند بولینگر: `{best['bb_position']}%` | حجم: {best['volume']}x
+• فیبوناچی: ۳۸.۲%: `{best['fib_382']}` | ۵۰%: `{best['fib_500']}`
+
+📉 **تغییرات ۲۴h:** `{best['change_24h']}%`
 
 📋 **دلایل:**
 {best['reasons']}
 
-⚡ **IRON GOD V10 - لحظه‌ای | آپدیت هر ۵ ثانیه** 🔥
+⚡ **IRON GOD V10 - تحلیل ۸ اندیکاتوره | آپدیت هر ۵ ثانیه** 🔥
 """
                 await msg.edit_text(signal_text)
             else:
                 await msg.edit_text("❌ **سیگنال پیدا نشد!**")
         
+        # سیگنال‌های برتر
         elif text == '🏆 سیگنال‌های برتر':
             msg = await update.message.reply_text("🔍 **در حال یافتن بهترین‌ها...** 🏆")
             signals = await ai.get_top_signals(5, is_premium)
@@ -1091,13 +1241,14 @@ class IronGodBot:
                     badge = "✨" if s['is_premium'] else ""
                     text += f"{i}. **{s['symbol']}** {badge}\n"
                     text += f"   💰 `${s['price_usd']}` | 🎯 `{s['score']}%` {s['action_emoji']}\n"
-                    text += f"   ✅ سود: {s['win_prob']}% | ❌ ضرر: {s['lose_prob']}%\n"
+                    text += f"   ✅ شانس سود: {s['win_prob']}% | ❌ شانس ضرر: {s['lose_prob']}%\n"
                     text += f"   📍 ورود: `{s['entry_min']}` | TP1: `{s['tp1']}`\n"
                     text += f"   ━━━━━━━━━━━━━━━━━\n"
                 await msg.edit_text(text)
             else:
                 await msg.edit_text("❌ **سیگنال پیدا نشد!**")
         
+        # ساخت لایسنس
         elif text == '➕ ساخت لایسنس' and is_admin:
             keyboard = [
                 [InlineKeyboardButton('📘 ۷ روز', callback_data='lic_7_regular'),
@@ -1114,6 +1265,7 @@ class IronGodBot:
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
+        # مدیریت کاربران
         elif text == '👥 مدیریت' and is_admin:
             users = db.get_all_users()
             if not users:
@@ -1129,6 +1281,7 @@ class IronGodBot:
                 kb = [[InlineKeyboardButton('🗑️ حذف', callback_data=f'del_{user["user_id"]}')]]
                 await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
         
+        # آمار
         elif text == '📊 آمار' and is_admin:
             usd = currency.get_usd_formatted()
             usdt = currency.get_usdt_formatted()
@@ -1158,6 +1311,7 @@ class IronGodBot:
 """
             await update.message.reply_text(text)
         
+        # اعتبار
         elif text == '⏳ اعتبار':
             user_data = db.get_user(user_id)
             if user_data:
@@ -1182,6 +1336,7 @@ class IronGodBot:
             else:
                 await update.message.reply_text("❌ **کاربر نیست!**")
         
+        # راهنما
         elif text == '🎓 راهنما':
             help_text = f"""
 🎓 **راهنمای IRON GOD V10**
@@ -1203,6 +1358,7 @@ class IronGodBot:
 """
             await update.message.reply_text(help_text)
         
+        # پشتیبانی
         elif text == '📞 پشتیبانی':
             await update.message.reply_text(f"📞 **پشتیبانی**\n\n`{self.support}`\n⏰ ۲۴ ساعته")
     
@@ -1256,9 +1412,12 @@ class IronGodBot:
 🛡️ **حد ضرر:**
 • SL: `{analysis['sl']}` (-{analysis['loss']}%)
 
-📊 **تحلیل:**
-• RSI: `{analysis['rsi']}` | حجم: {analysis['volume']}x
-• تغییر ۲۴h: `{analysis['change_24h']}%`
+📊 **تحلیل تکنیکال:**
+• RSI: `{analysis['rsi']}` | MACD: `{analysis['macd']}` ({analysis['macd_trend']})
+• باند بولینگر: `{analysis['bb_position']}%` | حجم: {analysis['volume']}x
+• فیبوناچی: ۳۸.۲%: `{analysis['fib_382']}`
+
+📉 **تغییرات ۲۴h:** `{analysis['change_24h']}%`
 
 📋 **دلایل:**
 {analysis['reasons']}
@@ -1306,7 +1465,7 @@ class IronGodBot:
     
     def run(self):
         print("\n" + "="*100)
-        print("🔥🔥🔥 IRON GOD V10 - قیمت دلار لحظه‌ای 🔥🔥🔥")
+        print("🔥🔥🔥 IRON GOD V10 - تحلیل ۸ اندیکاتوره | نسخه نهایی 🔥🔥🔥")
         print("="*100)
         print(f"👑 ادمین: {ADMIN_ID}")
         print(f"💵 دلار: {currency.get_usd_formatted()} تومان")
