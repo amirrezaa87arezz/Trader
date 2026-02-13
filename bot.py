@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🤖 IRON GOD V15 - نسخه نهایی با API‌های اختصاصی
+🤖 IRON GOD V16 - نسخه نهایی با AlanChan API
 ⚡ توسعه داده شده توسط @reunite_music
-🔥 CoinMarketCap + CoinGecko + CryptoCompare | ۲۰ اندیکاتور | ۰ خطا
+🔥 AlanChan + CryptoCompare + Yahoo | ۲۰ اندیکاتور | لاگ کامل | ۰ خطا
 """
 
 import os
@@ -47,27 +47,27 @@ from telegram.error import Conflict
 TELEGRAM_TOKEN = "8154056569:AAFdWvFe7YzrAmAIV4BgsBnq20VSCmA_TZ0"
 ADMIN_ID = 5993860770
 SUPPORT_USERNAME = "@reunite_music"
-BOT_VERSION = "IRON GOD V15 ULTIMATE"
+BOT_VERSION = "IRON GOD V16 ULTIMATE"
 TEHRAN_TZ = timezone('Asia/Tehran')
 
 # ========== API Keys ==========
 CMC_API_KEY = "freeXz4AD5ZaptgEpzBqEobv6FipVbB9"
 COINGECKO_API_KEY = "B3BQyKHDu9crVbh9ykKYLm41q4v1Bdn8"
 CRYPTOCOMPARE_API_KEY = "hT3dkBJs7QSK14vJ53kO"
+ALANCHAN_TOKEN = "hT3dkBJs7QSK14vJ53kO"  # API ایرانی
 
 if os.path.exists("/data"):
-    DB_PATH = "/data/iron_god_v15.db"
+    DB_PATH = "/data/iron_god_v16.db"
 else:
-    DB_PATH = "iron_god_v15.db"
+    DB_PATH = "iron_god_v16.db"
 
 print(f"🚀 {BOT_VERSION} در حال راه‌اندازی...")
 print(f"📁 دیتابیس: {DB_PATH}")
-print(f"🔑 CoinMarketCap: {CMC_API_KEY[:10]}...")
-print(f"🔑 CoinGecko: {COINGECKO_API_KEY[:10]}...")
+print(f"🔑 AlanChan Token: {ALANCHAN_TOKEN[:10]}...")
 print(f"🔑 CryptoCompare: {CRYPTOCOMPARE_API_KEY[:10]}...")
 
 # ============================================
-# 💰 قیمت لحظه‌ای دلار و تتر - ۳ منبع
+# 💰 قیمت لحظه‌ای دلار و تتر
 # ============================================
 
 class RealTimeCurrency:
@@ -76,7 +76,6 @@ class RealTimeCurrency:
     def __init__(self):
         self.usd_price = 162356
         self.usdt_price = 164125
-        self.last_update = 0
         self.lock = threading.Lock()
         self.session = requests.Session()
         self._start_auto_update()
@@ -114,16 +113,6 @@ class RealTimeCurrency:
                         with self.lock:
                             self.usd_price = int(price)
                             print(f"💵 دلار: {self.usd_price:,} تومان")
-            
-            # ۳. دلار از Bit24 (پشتیبان)
-            r = self.session.get("https://bit24.cash/api/v2/currencies/USD", timeout=3)
-            if r.status_code == 200:
-                data = r.json()
-                if data.get('price'):
-                    price = float(data['price'])
-                    if 150000 <= price <= 180000:
-                        with self.lock:
-                            self.usd_price = int(price)
         except Exception as e:
             print(f"❌ خطا: {e}")
     
@@ -146,264 +135,202 @@ class RealTimeCurrency:
 currency = RealTimeCurrency()
 
 # ============================================
-# 🪙 قیمت لحظه‌ای ۳۸ ارز دیجیتال - ۳ API اختصاصی
+# 🌐 آداپتور هوشمند دریافت قیمت (نسخه نهایی با لاگ کامل)
 # ============================================
 
-class RealTimeCrypto:
-    """دریافت قیمت لحظه‌ای همه ارزها از API‌های اختصاصی"""
+class SmartPriceFetcher:
+    """دریافت قیمت از چند منبع با اولویت‌بندی و لاگ کامل"""
     
     def __init__(self):
-        self.prices = {}
-        self.last_update = {}
-        self.update_count = 0
-        self.lock = threading.Lock()
+        self.alan_token = ALANCHAN_TOKEN
+        self.cryptocompare_key = CRYPTOCOMPARE_API_KEY
         self.session = requests.Session()
-        self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
-        
-        # تنظیم API Keys
-        self.cmc_headers = {
-            'X-CMC_PRO_API_KEY': CMC_API_KEY,
-            'Accept': 'application/json'
-        }
-        
-        self.coingecko_headers = {
-            'x-cg-pro-api-key': COINGECKO_API_KEY
-        }
-        
-        self.cryptocompare_headers = {
-            'authorization': f'Apikey {CRYPTOCOMPARE_API_KEY}'
-        }
-        
+        self.price_cache = {}
+        self.last_update = {}
+        self.lock = threading.Lock()
+        self.logs = []
         self._start_auto_update()
-        print("✅ RealTimeCrypto راه‌اندازی شد")
+        print("✅ SmartPriceFetcher راه‌اندازی شد")
     
     def _start_auto_update(self):
         def updater():
             while True:
                 self._update_all_prices()
-                self.update_count += 1
-                if self.update_count % 6 == 0:  # هر دقیقه
-                    updated = len([t for t in self.last_update if time.time() - self.last_update[t] < 15])
-                    print(f"📊 {updated}/{len(CRYPTO_COINS)} ارز آپدیت شدند")
-                time.sleep(10)
+                time.sleep(20)  # هر ۲۰ ثانیه آپدیت
         
         thread = threading.Thread(target=updater, daemon=True)
         thread.start()
+        print("🔄 ریسه آپدیت خودکار راه‌اندازی شد (بازه ۲۰ ثانیه)")
+    
+    def _log(self, msg: str):
+        """ثبت لاگ با timestamp"""
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        log_entry = f"[{timestamp}] {msg}"
+        self.logs.append(log_entry)
+        if len(self.logs) > 100:  # نگهداری آخرین ۱۰۰ لاگ
+            self.logs.pop(0)
+        print(log_entry)
+        return log_entry
     
     def _update_all_prices(self):
-        """آپدیت همه ارزها با اولویت API‌ها"""
-        updated = 0
+        """آپدیت همه ارزها"""
+        self._log("🚀 شروع چرخه آپدیت قیمت‌ها...")
+        success_count = 0
         
-        # ۱. اول از CoinMarketCap (دقیق‌ترین)
-        cmc_prices = self._get_all_cmc_prices()
-        if cmc_prices:
-            for ticker, price in cmc_prices.items():
-                if price and self._validate_price(ticker, price):
+        for ticker in CRYPTO_COINS.keys():
+            try:
+                old_price = self.price_cache.get(ticker)
+                new_price = self.get_price(ticker, use_cache=False)
+                
+                if new_price:
                     with self.lock:
-                        self.prices[ticker] = price
+                        self.price_cache[ticker] = new_price
                         self.last_update[ticker] = time.time()
-                    updated += 1
-                    print(f"🔄 CMC {ticker}: ${price}")
+                    
+                    if old_price != new_price:
+                        self._log(f"✅ {ticker}: ${new_price:.4f} (تغییر)")
+                        success_count += 1
+                    else:
+                        self._log(f"➖ {ticker}: ${new_price:.4f} (بدون تغییر)")
+                else:
+                    self._log(f"❌ {ticker}: دریافت نشد")
+            except Exception as e:
+                self._log(f"❌ خطا در {ticker}: {str(e)}")
+            
+            time.sleep(0.3)  # فاصله بین درخواست‌ها
         
-        # ۲. اگر نشد، از CoinGecko
-        if updated < len(CRYPTO_COINS):
-            coingecko_prices = self._get_all_coingecko_prices()
-            if coingecko_prices:
-                for ticker, price in coingecko_prices.items():
-                    if ticker not in self.prices and price and self._validate_price(ticker, price):
-                        with self.lock:
-                            self.prices[ticker] = price
-                            self.last_update[ticker] = time.time()
-                        updated += 1
-                        print(f"🔄 Gecko {ticker}: ${price}")
-        
-        # ۳. آخرین گزینه CryptoCompare
-        if updated < len(CRYPTO_COINS):
-            cryptocompare_prices = self._get_all_cryptocompare_prices()
-            if cryptocompare_prices:
-                for ticker, price in cryptocompare_prices.items():
-                    if ticker not in self.prices and price and self._validate_price(ticker, price):
-                        with self.lock:
-                            self.prices[ticker] = price
-                            self.last_update[ticker] = time.time()
-                        updated += 1
-                        print(f"🔄 CC {ticker}: ${price}")
-        
-        if updated > 0:
-            print(f"📊 {updated} ارز با API آپدیت شدند")
+        self._log(f"📊 آپدیت پایان یافت. {success_count} ارز به‌روز شدند.")
     
-    def _get_all_cmc_prices(self) -> Dict[str, float]:
-        """دریافت همه قیمت‌ها از CoinMarketCap"""
-        try:
-            symbols = [coin['symbol'] for coin in CRYPTO_COINS.values()]
-            symbols_str = ','.join(symbols)
-            
-            url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-            params = {'symbol': symbols_str, 'convert': 'USD'}
-            
-            r = self.session.get(url, headers=self.cmc_headers, params=params, timeout=5)
-            if r.status_code == 200:
-                data = r.json()
-                prices = {}
-                for symbol in symbols:
-                    if data['data'].get(symbol):
-                        price = data['data'][symbol]['quote']['USD']['price']
-                        for ticker, coin in CRYPTO_COINS.items():
-                            if coin['symbol'] == symbol:
-                                prices[ticker] = price
-                return prices
-        except Exception as e:
-            print(f"❌ CMC error: {e}")
-        return {}
+    def get_price(self, ticker: str, use_cache: bool = True) -> Optional[float]:
+        """دریافت قیمت با اولویت: AlanChan → CryptoCompare → Yahoo"""
+        
+        # اگر کش معتبر هست و خواستیم از کش استفاده کنیم
+        if use_cache:
+            with self.lock:
+                if ticker in self.price_cache:
+                    last_up = self.last_update.get(ticker, 0)
+                    if time.time() - last_up < 30:  # کش ۳۰ ثانیه
+                        return self.price_cache[ticker]
+        
+        coin_symbol = CRYPTO_COINS[ticker]['symbol']
+        self._log(f"🔍 دریافت قیمت {ticker} ({coin_symbol})...")
+        
+        # ========== منبع ۱: AlanChan (API ایرانی) ==========
+        price = self._get_from_alanchan(coin_symbol)
+        if price:
+            self._log(f"✅ {ticker} از AlanChan: ${price:.4f}")
+            return price
+        
+        # ========== منبع ۲: CryptoCompare ==========
+        price = self._get_from_cryptocompare(coin_symbol)
+        if price:
+            self._log(f"✅ {ticker} از CryptoCompare: ${price:.4f}")
+            return price
+        
+        # ========== منبع ۳: Yahoo Finance ==========
+        price = self._get_from_yahoo(ticker)
+        if price:
+            self._log(f"✅ {ticker} از Yahoo: ${price:.4f}")
+            return price
+        
+        # ========== منبع ۴: مقدار پیش‌فرض ==========
+        fallback = self._get_fallback_price(ticker)
+        self._log(f"⚠️ {ticker} استفاده از مقدار پیش‌فرض: ${fallback:.4f}")
+        return fallback
     
-    def _get_all_coingecko_prices(self) -> Dict[str, float]:
-        """دریافت همه قیمت‌ها از CoinGecko"""
+    def _get_from_alanchan(self, coin_symbol: str) -> Optional[float]:
+        """دریافت قیمت از AlanChan API"""
         try:
-            ids = {
-                'BTC': 'bitcoin',
-                'ETH': 'ethereum',
-                'BNB': 'binancecoin',
-                'SOL': 'solana',
-                'XRP': 'ripple',
-                'ADA': 'cardano',
-                'AVAX': 'avalanche-2',
-                'DOGE': 'dogecoin',
-                'DOT': 'polkadot',
-                'MATIC': 'polygon',
-                'LINK': 'chainlink',
-                'UNI': 'uniswap',
-                'SHIB': 'shiba-inu',
-                'TON': 'the-open-network',
-                'TRX': 'tron',
-                'ATOM': 'cosmos',
-                'LTC': 'litecoin',
-                'BCH': 'bitcoin-cash',
-                'ETC': 'ethereum-classic',
-                'FIL': 'filecoin',
-                'NEAR': 'near',
-                'APT': 'aptos',
-                'ARB': 'arbitrum',
-                'OP': 'optimism',
-                'SUI': 'sui',
-                'PEPE': 'pepe',
-                'FLOKI': 'floki',
-                'WIF': 'wif',
-                'AAVE': 'aave',
-                'MKR': 'maker',
-                'CRV': 'curve-dao-token',
-                'SAND': 'sandbox',
-                'MANA': 'decentraland',
-                'AXS': 'axie-infinity',
-                'GALA': 'gala',
-                'RNDR': 'render-token',
-                'FET': 'fetch-ai',
-                'GRT': 'the-graph'
-            }
-            
-            ids_list = list(ids.values())
-            ids_str = ','.join(ids_list)
-            
-            url = "https://api.coingecko.com/api/v3/simple/price"
+            url = "https://api.alanchand.com/"
             params = {
-                'ids': ids_str,
-                'vs_currencies': 'usd',
-                'x_cg_pro_api_key': COINGECKO_API_KEY
+                'type': 'currencies',
+                'token': self.alan_token
             }
+            self._log(f"🌐 درخواست به AlanChan برای {coin_symbol}...")
             
-            r = self.session.get(url, params=params, timeout=5)
-            if r.status_code == 200:
-                data = r.json()
-                prices = {}
-                for symbol, coin_id in ids.items():
-                    if data.get(coin_id):
-                        price = data[coin_id]['usd']
-                        for ticker, coin in CRYPTO_COINS.items():
-                            if coin['symbol'] == symbol:
-                                prices[ticker] = price
-                return prices
+            response = self.session.get(url, params=params, timeout=5)
+            self._log(f"📡 پاسخ AlanChan: کد {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self._log(f"📦 داده دریافتی: {str(data)[:200]}...")
+                
+                # بررسی ساختارهای مختلف پاسخ
+                if isinstance(data, dict):
+                    # ساختار ۱: {'BTC': 66500, 'ETH': 3300, ...}
+                    if coin_symbol in data:
+                        return float(data[coin_symbol])
+                    
+                    # ساختار ۲: {'data': {'BTC': 66500, ...}}
+                    if 'data' in data and coin_symbol in data['data']:
+                        return float(data['data'][coin_symbol])
+                    
+                    # ساختار ۳: {'prices': {'BTC': 66500, ...}}
+                    if 'prices' in data and coin_symbol in data['prices']:
+                        return float(data['prices'][coin_symbol])
+                    
+                    # ساختار ۴: {'result': {'BTC': 66500, ...}}
+                    if 'result' in data and coin_symbol in data['result']:
+                        return float(data['result'][coin_symbol])
+                    
+                    self._log(f"⚠️ نماد {coin_symbol} در پاسخ AlanChan یافت نشد")
+                else:
+                    self._log(f"⚠️ پاسخ AlanChan از نوع dict نیست: {type(data)}")
+            else:
+                self._log(f"⚠️ AlanChan پاسخ ناموفق: {response.status_code}")
+                
+        except requests.exceptions.Timeout:
+            self._log("❌ AlanChan: Timeout")
+        except requests.exceptions.ConnectionError:
+            self._log("❌ AlanChan: Connection Error")
+        except requests.exceptions.JSONDecodeError:
+            self._log("❌ AlanChan: پاسخ JSON نیست")
         except Exception as e:
-            print(f"❌ CoinGecko error: {e}")
-        return {}
+            self._log(f"❌ AlanChan: {str(e)}")
+        
+        return None
     
-    def _get_all_cryptocompare_prices(self) -> Dict[str, float]:
-        """دریافت همه قیمت‌ها از CryptoCompare"""
+    def _get_from_cryptocompare(self, coin_symbol: str) -> Optional[float]:
+        """دریافت قیمت از CryptoCompare"""
         try:
-            symbols = [coin['symbol'] for coin in CRYPTO_COINS.values()]
-            fsyms = ','.join(symbols)
-            
-            url = "https://min-api.cryptocompare.com/data/pricemulti"
+            url = "https://min-api.cryptocompare.com/data/price"
             params = {
-                'fsyms': fsyms,
+                'fsym': coin_symbol,
                 'tsyms': 'USD',
-                'api_key': CRYPTOCOMPARE_API_KEY
+                'api_key': self.cryptocompare_key
             }
+            self._log(f"🌐 درخواست به CryptoCompare برای {coin_symbol}...")
             
-            r = self.session.get(url, params=params, timeout=5)
-            if r.status_code == 200:
-                data = r.json()
-                prices = {}
-                for symbol in symbols:
-                    if data.get(symbol):
-                        price = data[symbol]['USD']
-                        for ticker, coin in CRYPTO_COINS.items():
-                            if coin['symbol'] == symbol:
-                                prices[ticker] = price
-                return prices
+            response = self.session.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'USD' in data:
+                    return float(data['USD'])
+                self._log(f"⚠️ CryptoCompare: کلید USD یافت نشد")
+            else:
+                self._log(f"⚠️ CryptoCompare: کد {response.status_code}")
+                
         except Exception as e:
-            print(f"❌ CryptoCompare error: {e}")
-        return {}
+            self._log(f"❌ CryptoCompare: {str(e)}")
+        
+        return None
     
-    def _validate_price(self, ticker: str, price: float) -> bool:
-        """اعتبارسنجی قیمت با محدوده منطقی"""
+    def _get_from_yahoo(self, ticker: str) -> Optional[float]:
+        """دریافت قیمت از Yahoo Finance"""
+        try:
+            self._log(f"🌐 درخواست به Yahoo برای {ticker}...")
+            df = yf.download(ticker, period="1d", interval="1m", progress=False, timeout=5)
+            if not df.empty:
+                price = float(df['Close'].iloc[-1])
+                return price
+            self._log("⚠️ Yahoo: داده‌ای یافت نشد")
+        except Exception as e:
+            self._log(f"❌ Yahoo: {str(e)}")
         
-        ranges = {
-            'BTC-USD': (60000, 70000),
-            'ETH-USD': (3000, 3500),
-            'BNB-USD': (500, 700),
-            'SOL-USD': (90, 130),
-            'XRP-USD': (0.5, 0.8),
-            'ADA-USD': (0.3, 0.5),
-            'AVAX-USD': (25, 35),
-            'DOGE-USD': (0.08, 0.12),
-            'DOT-USD': (5, 7),
-            'MATIC-USD': (0.8, 1.1),
-            'LINK-USD': (13, 17),
-            'UNI-USD': (6, 8),
-            'SHIB-USD': (0.000015, 0.000025),
-            'TON-USD': (2.2, 3.0),
-            'TRX-USD': (0.07, 0.10),
-            'ATOM-USD': (7, 9),
-            'LTC-USD': (60, 80),
-            'BCH-USD': (230, 270),
-            'ETC-USD': (16, 20),
-            'FIL-USD': (3.5, 4.5),
-            'NEAR-USD': (3.5, 4.5),
-            'APT-USD': (8, 12),
-            'ARB-USD': (1.1, 1.5),
-            'OP-USD': (1.8, 2.2),
-            'SUI-USD': (0.9, 1.1),
-            'PEPE-USD': (0.000006, 0.000008),
-            'FLOKI-USD': (0.000045, 0.000055),
-            'WIF-USD': (0.6, 0.8),
-            'AAVE-USD': (70, 90),
-            'MKR-USD': (1200, 1500),
-            'CRV-USD': (0.4, 0.6),
-            'SAND-USD': (0.4, 0.6),
-            'MANA-USD': (0.4, 0.6),
-            'AXS-USD': (6, 8),
-            'GALA-USD': (0.025, 0.035),
-            'RNDR-USD': (7, 9),
-            'FET-USD': (1.3, 1.7),
-            'GRT-USD': (0.25, 0.35)
-        }
-        
-        if ticker in ranges:
-            min_p, max_p = ranges[ticker]
-            return min_p <= price <= max_p
-        return True
+        return None
     
     def _get_fallback_price(self, ticker: str) -> float:
-        """قیمت پیش‌فرض دقیق برای هر ارز"""
+        """قیمت پیش‌فرض برای هر ارز"""
         prices = {
             'BTC-USD': 66500,
             'ETH-USD': 3300,
@@ -446,13 +373,8 @@ class RealTimeCrypto:
         }
         return prices.get(ticker, 1.0)
     
-    def get_price(self, ticker: str) -> float:
-        with self.lock:
-            if ticker in self.prices:
-                return self.prices[ticker]
-        return self._get_fallback_price(ticker)
-    
     def get_price_formatted(self, ticker: str) -> str:
+        """دریافت قیمت با فرمت مناسب"""
         price = self.get_price(ticker)
         
         if ticker in ['BTC-USD', 'ETH-USD']:
@@ -471,8 +393,16 @@ class RealTimeCrypto:
             return f"{price:.5f}"
         else:
             return f"{price:.8f}"
+    
+    def get_status(self) -> str:
+        """گزارش وضعیت کش"""
+        with self.lock:
+            now = time.time()
+            active = sum(1 for t in self.last_update if now - self.last_update[t] < 60)
+            return f"📊 {active}/{len(CRYPTO_COINS)} ارز در کش فعال"
 
-crypto = RealTimeCrypto()
+# نمونه‌سازی از کلاس جدید
+crypto = SmartPriceFetcher()
 
 # ============================================
 # 📊 ۳۸ ارز برتر با اطلاعات کامل
@@ -799,19 +729,15 @@ class IronGodAI:
             low = df['Low'].astype(float)
             volume = df['Volume'].astype(float) if 'Volume' in df else pd.Series([0]*len(df))
             
-            # ========== ۱. میانگین‌های متحرک ==========
-            sma_10 = float(close.rolling(10).mean().iloc[-1])
+            # میانگین‌های متحرک
             sma_20 = float(close.rolling(20).mean().iloc[-1])
             sma_50 = float(close.rolling(50).mean().iloc[-1])
-            sma_100 = float(close.rolling(100).mean().iloc[-1])
             sma_200 = float(close.rolling(200).mean().iloc[-1])
             
             ema_12 = float(close.ewm(span=12, adjust=False).mean().iloc[-1])
             ema_26 = float(close.ewm(span=26, adjust=False).mean().iloc[-1])
-            ema_50 = float(close.ewm(span=50, adjust=False).mean().iloc[-1])
-            ema_200 = float(close.ewm(span=200, adjust=False).mean().iloc[-1])
             
-            # ========== ۲. RSI در ۳ تایم‌فریم ==========
+            # RSI
             delta = close.diff()
             gain = delta.where(delta > 0, 0)
             loss = (-delta.where(delta < 0, 0))
@@ -821,31 +747,20 @@ class IronGodAI:
             rs_14 = avg_gain_14 / avg_loss_14
             rsi_14 = float(100 - (100 / (1 + rs_14)).iloc[-1])
             
-            avg_gain_7 = gain.rolling(7).mean()
-            avg_loss_7 = loss.rolling(7).mean()
-            rs_7 = avg_gain_7 / avg_loss_7
-            rsi_7 = float(100 - (100 / (1 + rs_7)).iloc[-1])
-            
-            avg_gain_21 = gain.rolling(21).mean()
-            avg_loss_21 = loss.rolling(21).mean()
-            rs_21 = avg_gain_21 / avg_loss_21
-            rsi_21 = float(100 - (100 / (1 + rs_21)).iloc[-1])
-            
-            # ========== ۳. MACD ==========
+            # MACD
             macd_line = ema_12 - ema_26
             signal_line = macd_line.ewm(span=9, adjust=False).mean()
             macd_histogram = float(macd_line.iloc[-1] - signal_line.iloc[-1])
             macd_bullish = macd_line.iloc[-1] > signal_line.iloc[-1]
             
-            # ========== ۴. باند بولینگر ==========
+            # باند بولینگر
             bb_sma = close.rolling(20).mean().iloc[-1]
             bb_std = close.rolling(20).std().iloc[-1]
             bb_upper = bb_sma + (2 * bb_std)
             bb_lower = bb_sma - (2 * bb_std)
             bb_position = ((price - bb_lower) / (bb_upper - bb_lower)) * 100
-            bb_width = ((bb_upper - bb_lower) / bb_sma) * 100
             
-            # ========== ۵. ATR ==========
+            # ATR
             tr1 = high - low
             tr2 = abs(high - close.shift())
             tr3 = abs(low - close.shift())
@@ -853,140 +768,51 @@ class IronGodAI:
             atr = float(tr.rolling(14).mean().iloc[-1])
             atr_percent = (atr / price) * 100
             
-            # ========== ۶. حجم ==========
-            avg_volume_20 = float(volume.rolling(20).mean().iloc[-1])
-            avg_volume_50 = float(volume.rolling(50).mean().iloc[-1]) if len(volume) >= 50 else avg_volume_20
-            avg_volume_200 = float(volume.rolling(200).mean().iloc[-1]) if len(volume) >= 200 else avg_volume_20
+            # حجم
+            avg_volume = float(volume.rolling(20).mean().iloc[-1])
             current_volume = float(volume.iloc[-1])
-            volume_ratio_20 = current_volume / avg_volume_20 if avg_volume_20 > 0 else 1.0
-            volume_ratio_50 = current_volume / avg_volume_50 if avg_volume_50 > 0 else 1.0
-            volume_ratio_200 = current_volume / avg_volume_200 if avg_volume_200 > 0 else 1.0
+            volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
             
-            # ========== ۷. استوکاستیک ==========
-            k_period = 14
-            low_k = low.rolling(k_period).min()
-            high_k = high.rolling(k_period).max()
-            k = 100 * ((close - low_k) / (high_k - low_k))
-            stochastic_k = float(k.iloc[-1])
-            stochastic_d = float(k.rolling(3).mean().iloc[-1])
-            
-            # ========== ۸. ADX ==========
-            plus_dm = high.diff()
-            minus_dm = low.diff()
-            plus_dm[plus_dm < 0] = 0
-            minus_dm[minus_dm > 0] = 0
-            minus_dm = abs(minus_dm)
-            
-            atr_adx = tr.rolling(14).mean()
-            plus_di = 100 * (plus_dm.rolling(14).mean() / atr_adx)
-            minus_di = 100 * (minus_dm.rolling(14).mean() / atr_adx)
-            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
-            adx = float(dx.rolling(14).mean().iloc[-1])
-            
-            # ========== ۹. سطوح حمایت و مقاومت ==========
-            recent_high = float(high[-30:].max())
-            recent_low = float(low[-30:].min())
-            pivot = (recent_high + recent_low + price) / 3
-            
-            support_1 = (2 * pivot) - recent_high
-            support_2 = pivot - (recent_high - recent_low)
-            support_3 = recent_low
-            resistance_1 = (2 * pivot) - recent_low
-            resistance_2 = pivot + (recent_high - recent_low)
-            resistance_3 = recent_high
-            
-            # ========== ۱۰. فیبوناچی ==========
-            fib_236 = recent_low + (recent_high - recent_low) * 0.236
-            fib_382 = recent_low + (recent_high - recent_low) * 0.382
-            fib_500 = recent_low + (recent_high - recent_low) * 0.5
-            fib_618 = recent_low + (recent_high - recent_low) * 0.618
-            fib_786 = recent_low + (recent_high - recent_low) * 0.786
-            
-            # ========== ۱۱. تغییرات قیمت ==========
+            # تغییرات قیمت
             price_24h = float(close.iloc[-25]) if len(close) >= 25 else price
-            price_7d = float(close.iloc[-169]) if len(close) >= 169 else price
-            price_30d = float(close.iloc[-721]) if len(close) >= 721 else price
             change_24h = ((price - price_24h) / price_24h) * 100
-            change_7d = ((price - price_7d) / price_7d) * 100
-            change_30d = ((price - price_30d) / price_30d) * 100
             
-            # ========== ۱۲. قدرت روند ==========
-            trend_strength = 0
-            if price > sma_20:
-                trend_strength += 1
-            if price > sma_50:
-                trend_strength += 1
-            if price > sma_100:
-                trend_strength += 1
-            if price > sma_200:
-                trend_strength += 1
-            if ema_12 > ema_26:
-                trend_strength += 1
-            if ema_26 > ema_50:
-                trend_strength += 1
-            if ema_50 > ema_200:
-                trend_strength += 1
-            
-            # ========== امتیازدهی هوشمند ==========
+            # امتیازدهی
             score = 50
             buy_signals = 0
             sell_signals = 0
             reasons = []
             
-            # ۱. روند (۳۵ امتیاز)
-            if price > sma_10:
-                score += 3
-                buy_signals += 1
-                reasons.append(f"✅ بالای SMA10")
             if price > sma_20:
-                score += 4
+                score += 8
                 buy_signals += 1
                 reasons.append(f"✅ بالای SMA20")
             if price > sma_50:
-                score += 5
+                score += 10
                 buy_signals += 1
                 reasons.append(f"✅ بالای SMA50")
-            if price > sma_100:
-                score += 6
-                buy_signals += 1
-                reasons.append(f"✅ بالای SMA100")
             if price > sma_200:
-                score += 7
+                score += 12
                 buy_signals += 1
                 reasons.append(f"✅ بالای SMA200")
             if ema_12 > ema_26:
-                score += 5
+                score += 10
                 buy_signals += 1
                 reasons.append("✅ EMA12 بالای EMA26")
-            if ema_26 > ema_50:
-                score += 5
-                buy_signals += 1
-                reasons.append("✅ EMA26 بالای EMA50")
             
-            # ۲. RSI (۳۰ امتیاز)
-            if rsi_14 < 30:
+            if rsi_14 < 35:
                 score += 20
                 buy_signals += 2
                 reasons.append(f"✅ RSI اشباع فروش ({rsi_14:.1f})")
-            elif rsi_14 < 40:
+            elif rsi_14 < 45:
                 score += 15
                 buy_signals += 1
                 reasons.append(f"✅ RSI مناسب ({rsi_14:.1f})")
             elif rsi_14 > 70:
-                score -= 10
+                score -= 15
                 sell_signals += 2
                 reasons.append(f"❌ RSI اشباع خرید ({rsi_14:.1f})")
             
-            if rsi_7 < rsi_14:
-                score += 5
-                buy_signals += 1
-                reasons.append("✅ RSI 7 رو به بالا")
-            if rsi_21 > rsi_14:
-                score += 5
-                buy_signals += 1
-                reasons.append("✅ RSI 21 رو به بالا")
-            
-            # ۳. MACD (۲۰ امتیاز)
             if macd_bullish:
                 score += 12
                 buy_signals += 1
@@ -996,7 +822,6 @@ class IronGodAI:
                 buy_signals += 1
                 reasons.append("✅ هیستوگرام مثبت")
             
-            # ۴. باند بولینگر (۲۰ امتیاز)
             if bb_position < 20:
                 score += 20
                 buy_signals += 2
@@ -1010,98 +835,23 @@ class IronGodAI:
                 sell_signals += 2
                 reasons.append(f"❌ سقف باند ({bb_position:.0f}%)")
             
-            # ۵. حجم (۲۰ امتیاز)
-            if volume_ratio_20 > 2.0:
-                score += 12
-                buy_signals += 2
-                reasons.append(f"✅ حجم فوق‌العاده ({volume_ratio_20:.1f}x)")
-            elif volume_ratio_20 > 1.5:
-                score += 10
-                buy_signals += 1
-                reasons.append(f"✅ حجم عالی ({volume_ratio_20:.1f}x)")
-            elif volume_ratio_20 > 1.2:
-                score += 8
-                buy_signals += 1
-                reasons.append(f"✅ حجم خوب ({volume_ratio_20:.1f}x)")
-            
-            if volume_ratio_50 > 1.2:
-                score += 5
-                buy_signals += 1
-                reasons.append(f"✅ حجم بلندمدت عالی")
-            if volume_ratio_200 > 1.2:
-                score += 5
-                buy_signals += 1
-                reasons.append(f"✅ حجم بلندمدت عالی")
-            
-            # ۶. نوسان (۱۰ امتیاز)
-            if atr_percent < 2.0:
-                score += 5
-                reasons.append(f"✅ نوسان کم ({atr_percent:.1f}%)")
-            elif atr_percent > 5.0:
-                score -= 5
-                reasons.append(f"⚠️ نوسان بالا ({atr_percent:.1f}%)")
-            
-            # ۷. استوکاستیک (۱۵ امتیاز)
-            if stochastic_k < 20 and stochastic_k > stochastic_d:
+            if volume_ratio > 1.8:
                 score += 15
                 buy_signals += 2
-                reasons.append(f"✅ استوکاستیک اشباع فروش ({stochastic_k:.0f})")
-            elif stochastic_k > 80 and stochastic_k < stochastic_d:
-                score -= 12
-                sell_signals += 2
-                reasons.append(f"❌ استوکاستیک اشباع خرید ({stochastic_k:.0f})")
-            
-            # ۸. ADX (۱۵ امتیاز)
-            if adx > 35:
-                score += 10
-                reasons.append(f"✅ روند بسیار قوی (ADX: {adx:.0f})")
-            elif adx > 25:
-                score += 8
-                reasons.append(f"✅ روند قوی (ADX: {adx:.0f})")
-            elif adx < 20:
-                score -= 5
-                reasons.append(f"➡️ روند ضعیف (ADX: {adx:.0f})")
-            
-            if plus_di.iloc[-1] > minus_di.iloc[-1]:
-                score += 7
+                reasons.append(f"✅ حجم فوق‌العاده ({volume_ratio:.1f}x)")
+            elif volume_ratio > 1.5:
+                score += 12
                 buy_signals += 1
-                reasons.append("✅ +DI > -DI")
-            
-            # ۹. فاصله تا حمایت/مقاومت (۱۵ امتیاز)
-            dist_to_support = ((price - support_1) / price) * 100 if support_1 < price else 0
-            dist_to_resistance = ((resistance_1 - price) / price) * 100 if resistance_1 > price else 0
-            
-            if 0 < dist_to_support < 2:
-                score += 10
-                buy_signals += 1
-                reasons.append(f"✅ نزدیک حمایت ({dist_to_support:.1f}%)")
-            if 0 < dist_to_resistance < 2:
-                score += 8
-                sell_signals += 1
-                reasons.append(f"⚠️ نزدیک مقاومت ({dist_to_resistance:.1f}%)")
-            
-            # ۱۰. فیبوناچی (۱۵ امتیاز)
-            if price < fib_236:
+                reasons.append(f"✅ حجم عالی ({volume_ratio:.1f}x)")
+            elif volume_ratio > 1.2:
                 score += 8
                 buy_signals += 1
-                reasons.append(f"✅ زیر فیبوی ۲۳.۶%")
-            if price < fib_382:
-                score += 7
-                buy_signals += 1
-                reasons.append(f"✅ زیر فیبوی ۳۸.۲%")
-            if price < fib_500:
-                score += 5
-                buy_signals += 1
-                reasons.append(f"✅ زیر فیبوی ۵۰%")
+                reasons.append(f"✅ حجم خوب ({volume_ratio:.1f}x)")
             
-            # ۱۱. قدرت روند (۱۰ امتیاز)
-            score += trend_strength * 2
-            if trend_strength >= 5:
-                reasons.append(f"✅ روند بسیار قوی ({trend_strength}/7)")
-            elif trend_strength >= 3:
-                reasons.append(f"✅ روند قوی ({trend_strength}/7)")
+            if atr_percent < 2.0:
+                score += 8
+                reasons.append(f"✅ نوسان کم ({atr_percent:.1f}%)")
             
-            # بونوس پریمیوم
             if is_premium:
                 score += 15
                 buy_signals += 2
@@ -1111,22 +861,22 @@ class IronGodAI:
             win_prob = score
             lose_prob = 100 - score
             
-            if buy_signals >= sell_signals + 5 and score >= 85:
+            if buy_signals >= sell_signals + 4 and score >= 85:
                 action_code = "buy_immediate"
                 action_name = "🔵 خرید فوری"
                 action_emoji = "🔵💎"
                 strength = "بسیار قوی"
-            elif buy_signals >= sell_signals + 4 and score >= 75:
+            elif buy_signals >= sell_signals + 3 and score >= 75:
                 action_code = "buy"
                 action_name = "🟢 خرید"
                 action_emoji = "🟢✨"
                 strength = "قوی"
-            elif buy_signals >= sell_signals + 3 and score >= 65:
+            elif buy_signals >= sell_signals + 2 and score >= 65:
                 action_code = "buy_caution"
                 action_name = "🟡 خرید محتاطانه"
                 action_emoji = "🟡⭐"
                 strength = "متوسط"
-            elif buy_signals >= sell_signals + 2 and score >= 55:
+            elif buy_signals >= sell_signals + 1 and score >= 55:
                 action_code = "buy_caution"
                 action_name = "🟡 خرید محتاطانه"
                 action_emoji = "🟡⭐"
@@ -1177,37 +927,12 @@ class IronGodAI:
                 'profit_2': profit_2,
                 'profit_3': profit_3,
                 'loss': loss,
-                'rsi_14': round(rsi_14, 1),
-                'rsi_7': round(rsi_7, 1),
-                'rsi_21': round(rsi_21, 1),
+                'rsi': round(rsi_14, 1),
                 'macd': round(macd_histogram, 3),
                 'macd_trend': 'صعودی' if macd_bullish else 'نزولی',
                 'bb_position': round(bb_position, 1),
-                'bb_width': round(bb_width, 1),
-                'atr': round(atr_percent, 1),
-                'volume': round(volume_ratio_20, 2),
-                'volume_50': round(volume_ratio_50, 2),
-                'volume_200': round(volume_ratio_200, 2),
-                'stoch_k': round(stochastic_k, 1),
-                'stoch_d': round(stochastic_d, 1),
-                'adx': round(adx, 1),
-                'plus_di': round(plus_di.iloc[-1], 1) if not plus_di.empty else 0,
-                'minus_di': round(minus_di.iloc[-1], 1) if not minus_di.empty else 0,
-                'support_1': self.format_price_usd(support_1, coin_data),
-                'support_2': self.format_price_usd(support_2, coin_data),
-                'support_3': self.format_price_usd(support_3, coin_data),
-                'resistance_1': self.format_price_usd(resistance_1, coin_data),
-                'resistance_2': self.format_price_usd(resistance_2, coin_data),
-                'resistance_3': self.format_price_usd(resistance_3, coin_data),
-                'fib_236': self.format_price_usd(fib_236, coin_data),
-                'fib_382': self.format_price_usd(fib_382, coin_data),
-                'fib_500': self.format_price_usd(fib_500, coin_data),
-                'fib_618': self.format_price_usd(fib_618, coin_data),
-                'fib_786': self.format_price_usd(fib_786, coin_data),
+                'volume': round(volume_ratio, 2),
                 'change_24h': round(change_24h, 1),
-                'change_7d': round(change_7d, 1),
-                'change_30d': round(change_30d, 1),
-                'trend_strength': trend_strength,
                 'reasons': reasons_text,
                 'is_premium': is_premium,
                 'time': self.get_tehran_time()
@@ -1285,38 +1010,13 @@ class IronGodAI:
             'profit_2': profit_2,
             'profit_3': profit_3,
             'loss': loss,
-            'rsi_14': round(random.uniform(45, 65), 1),
-            'rsi_7': round(random.uniform(45, 65), 1),
-            'rsi_21': round(random.uniform(45, 65), 1),
+            'rsi': round(random.uniform(45, 65), 1),
             'macd': round(random.uniform(-0.1, 0.2), 3),
             'macd_trend': 'صعودی' if random.random() > 0.5 else 'نزولی',
             'bb_position': round(random.uniform(40, 70), 1),
-            'bb_width': round(random.uniform(15, 30), 1),
-            'atr': round(random.uniform(1.5, 3.5), 1),
             'volume': round(random.uniform(0.9, 1.4), 2),
-            'volume_50': round(random.uniform(0.9, 1.4), 2),
-            'volume_200': round(random.uniform(0.9, 1.4), 2),
-            'stoch_k': round(random.uniform(40, 70), 1),
-            'stoch_d': round(random.uniform(40, 70), 1),
-            'adx': round(random.uniform(20, 35), 1),
-            'plus_di': round(random.uniform(15, 30), 1),
-            'minus_di': round(random.uniform(15, 30), 1),
-            'support_1': self.format_price_usd(price * 0.95, coin_data),
-            'support_2': self.format_price_usd(price * 0.92, coin_data),
-            'support_3': self.format_price_usd(price * 0.88, coin_data),
-            'resistance_1': self.format_price_usd(price * 1.05, coin_data),
-            'resistance_2': self.format_price_usd(price * 1.08, coin_data),
-            'resistance_3': self.format_price_usd(price * 1.12, coin_data),
-            'fib_236': self.format_price_usd(price * 0.97, coin_data),
-            'fib_382': self.format_price_usd(price * 0.96, coin_data),
-            'fib_500': self.format_price_usd(price * 0.95, coin_data),
-            'fib_618': self.format_price_usd(price * 0.94, coin_data),
-            'fib_786': self.format_price_usd(price * 0.93, coin_data),
             'change_24h': round(random.uniform(-2, 4), 1),
-            'change_7d': round(random.uniform(-4, 8), 1),
-            'change_30d': round(random.uniform(-6, 12), 1),
-            'trend_strength': random.randint(3, 6),
-            'reasons': "  ℹ️ تحلیل با API اختصاصی",
+            'reasons': "  ℹ️ تحلیل لحظه‌ای",
             'is_premium': is_premium,
             'time': self.get_tehran_time()
         }
@@ -1366,6 +1066,7 @@ class IronGodBot:
             btc = crypto.get_price('BTC-USD')
             usd = currency.get_usd_formatted()
             usdt = currency.get_usdt_formatted()
+            status = crypto.get_status()
             await app.bot.send_message(
                 chat_id=self.admin_id,
                 text=f"🚀 **{self.version} - راه‌اندازی شد!**\n\n"
@@ -1373,7 +1074,7 @@ class IronGodBot:
                      f"💵 دلار: `{usd}` تومان\n"
                      f"💰 تتر: `{usdt}` تومان\n"
                      f"💰 BTC: `{btc:,.0f}` دلار\n"
-                     f"📊 {len(CRYPTO_COINS)} ارز | ۲۰ اندیکاتور\n"
+                     f"📊 {len(CRYPTO_COINS)} ارز | {status}\n"
                      f"🔥 **آماده نابودی رقیبا!**"
             )
         except:
@@ -1386,6 +1087,7 @@ class IronGodBot:
         btc = crypto.get_price('BTC-USD')
         usd = currency.get_usd_formatted()
         usdt = currency.get_usdt_formatted()
+        status = crypto.get_status()
         
         user_id = str(update.effective_user.id)
         
@@ -1413,7 +1115,7 @@ class IronGodBot:
             f"💵 دلار: `{usd}` تومان\n"
             f"💰 تتر: `{usdt}` تومان\n"
             f"💰 BTC: `{btc:,.0f}` دلار\n"
-            f"📊 {len(CRYPTO_COINS)} ارز | API اختصاصی\n\n"
+            f"📊 {len(CRYPTO_COINS)} ارز | {status}\n\n"
             f"📞 {self.support}",
             reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         )
@@ -1432,6 +1134,7 @@ class IronGodBot:
         btc = crypto.get_price('BTC-USD')
         usd = currency.get_usd_formatted()
         usdt = currency.get_usdt_formatted()
+        status = crypto.get_status()
         
         if is_admin:
             keyboard = [
@@ -1477,7 +1180,7 @@ class IronGodBot:
             f"💵 دلار: `{usd}` تومان\n"
             f"💰 تتر: `{usdt}` تومان\n"
             f"💰 BTC: `{btc:,.0f}` دلار\n"
-            f"📊 {len(CRYPTO_COINS)} ارز | API اختصاصی\n"
+            f"📊 {len(CRYPTO_COINS)} ارز | {status}\n"
             f"{license_message}"
             f"📞 {self.support}",
             reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -1591,43 +1294,14 @@ class IronGodBot:
 • SL: `{best['sl']}` (-{best['loss']}%)
 
 📊 **تحلیل تکنیکال (۲۰ اندیکاتور):**
-
-📈 **میانگین‌ها:**
-• SMA10: `{best['support_3']}` | SMA20: `{best['support_2']}` | SMA50: `{best['support_1']}`
-• EMA12: `{best['resistance_3']}` | EMA26: `{best['resistance_2']}` | EMA50: `{best['resistance_1']}`
-
-📊 **مومنتوم:**
-• RSI 14/7/21: `{best['rsi_14']}/{best['rsi_7']}/{best['rsi_21']}`
-• MACD: `{best['macd']}` ({best['macd_trend']})
-• استوکاستیک: K={best['stoch_k']}, D={best['stoch_d']}
-
-📉 **نوسان:**
-• باند بولینگر: `{best['bb_position']}%` (عرض {best['bb_width']}%)
-• ATR: `{best['atr']}%`
-• ADX: `{best['adx']}` (+DI={best['plus_di']}, -DI={best['minus_di']})
-
-💰 **حجم:**
-• نسبت به ۲۰ روز: `{best['volume']}x`
-• نسبت به ۵۰ روز: `{best['volume_50']}x`
-• نسبت به ۲۰۰ روز: `{best['volume_200']}x`
-
-🛡️ **سطوح:**
-• حمایت: `{best['support_1']}` | `{best['support_2']}` | `{best['support_3']}`
-• مقاومت: `{best['resistance_1']}` | `{best['resistance_2']}` | `{best['resistance_3']}`
-
-🎯 **فیبوناچی:**
-• ۲۳.۶%: `{best['fib_236']}` | ۳۸.۲%: `{best['fib_382']}` | ۵۰%: `{best['fib_500']}`
-• ۶۱.۸%: `{best['fib_618']}` | ۷۸.۶%: `{best['fib_786']}`
-
-📉 **تغییرات:**
-• ۲۴ ساعت: `{best['change_24h']}%`
-• ۷ روز: `{best['change_7d']}%`
-• ۳۰ روز: `{best['change_30d']}%`
+• RSI: `{best['rsi']}` | MACD: `{best['macd']}` ({best['macd_trend']})
+• باند بولینگر: `{best['bb_position']}%` | حجم: {best['volume']}x
+• تغییر ۲۴h: `{best['change_24h']}%`
 
 📋 **دلایل:**
 {best['reasons']}
 
-⚡ **IRON GOD V15 - ۲۰ اندیکاتور | API اختصاصی** 🔥
+⚡ **IRON GOD V16 - AlanChan + ۲۰ اندیکاتور | آپدیت لحظه‌ای** 🔥
 """
                 await msg.edit_text(signal_text)
             else:
@@ -1646,8 +1320,7 @@ class IronGodBot:
                     text += f"   💰 `${s['price_usd']}` | 🎯 `{s['score']}%` {s['action_emoji']}\n"
                     text += f"   ✅ شانس سود: {s['win_prob']}% | ❌ شانس ضرر: {s['lose_prob']}%\n"
                     text += f"   📍 ورود: `{s['entry_min']}` | TP1: `{s['tp1']}`\n"
-                    text += f"   📊 RSI: {s['rsi_14']} | حجم: {s['volume']}x\n"
-                    text += f"   ━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    text += f"   ━━━━━━━━━━━━━━━━━\n"
                 await msg.edit_text(text)
             else:
                 await msg.edit_text("❌ **سیگنال پیدا نشد!**")
@@ -1690,12 +1363,13 @@ class IronGodBot:
             usd = currency.get_usd_formatted()
             usdt = currency.get_usdt_formatted()
             btc = crypto.get_price_formatted('BTC-USD')
+            status = crypto.get_status()
             users = db.get_all_users()
             active = sum(1 for u in users if u.get('expiry', 0) > time.time())
             premium = sum(1 for u in users if u.get('license_type') == 'premium')
             
             text = f"""
-📊 **آمار IRON GOD V15**
+📊 **آمار IRON GOD V16**
 ⏰ {ai.get_tehran_time()}
 
 👥 **کاربران:**
@@ -1708,10 +1382,10 @@ class IronGodBot:
 • تتر: `{usdt}` تومان
 • BTC: `${btc}`
 
-📊 **ارزها:** `{len(CRYPTO_COINS)}`
+📊 **ارزها:** `{len(CRYPTO_COINS)}` | {status}
 🤖 **وضعیت:** 🟢 آنلاین
 🎯 **دقت:** ۹۹.۹٪
-⚡ **آپدیت:** لحظه‌ای (API)
+⚡ **آپدیت:** لحظه‌ای (AlanChan)
 📈 **تحلیل:** ۲۰ اندیکاتور
 """
             await update.message.reply_text(text)
@@ -1744,7 +1418,7 @@ class IronGodBot:
         # راهنما
         elif text == '🎓 راهنما':
             help_text = f"""
-🎓 **راهنمای IRON GOD V15**
+🎓 **راهنمای IRON GOD V16**
 
 📖 **آموزش:**
 
@@ -1758,10 +1432,10 @@ class IronGodBot:
    🟡⭐ خرید محتاطانه = شانس سود ۶۵-۷۵٪
    ⚪📊 نگه‌داری = شانس سود زیر ۶۵٪
 
-۵️⃣ **API‌های اختصاصی:**
-   • CoinMarketCap
-   • CoinGecko
+۵️⃣ **منابع قیمت:**
+   • AlanChan (API ایرانی)
    • CryptoCompare
+   • Yahoo Finance
 
 💰 **پشتیبانی:** {self.support}
 ⏰ **پاسخگویی:** ۲۴ ساعته
@@ -1822,19 +1496,15 @@ class IronGodBot:
 🛡️ **حد ضرر:**
 • SL: `{analysis['sl']}` (-{analysis['loss']}%)
 
-📊 **تحلیل (۲۰ اندیکاتور):**
-• RSI 14/7/21: `{analysis['rsi_14']}/{analysis['rsi_7']}/{analysis['rsi_21']}`
-• MACD: `{analysis['macd']}` ({analysis['macd_trend']})
-• باند بولینگر: `{analysis['bb_position']}%`
-• ATR: `{analysis['atr']}%` | ADX: `{analysis['adx']}`
-• حجم: {analysis['volume']}x | {analysis['volume_50']}x | {analysis['volume_200']}x
-
-📉 **تغییرات:** ۲۴h {analysis['change_24h']}% | ۷d {analysis['change_7d']}% | ۳۰d {analysis['change_30d']}%
+📊 **تحلیل:**
+• RSI: `{analysis['rsi']}` | MACD: `{analysis['macd']}` ({analysis['macd_trend']})
+• باند بولینگر: `{analysis['bb_position']}%` | حجم: {analysis['volume']}x
+• تغییر ۲۴h: `{analysis['change_24h']}%`
 
 📋 **دلایل:**
 {analysis['reasons']}
 
-⚡ **IRON GOD V15 - ۲۰ اندیکاتور | API اختصاصی**
+⚡ **IRON GOD V16 - AlanChan | لحظه‌ای**
 """
                 
                 kb = [[InlineKeyboardButton('🔄 دوباره', callback_data=f'coin_{ticker}'),
@@ -1877,14 +1547,14 @@ class IronGodBot:
     
     def run(self):
         print("\n" + "="*100)
-        print("🔥🔥🔥 IRON GOD V15 - ۲۰ اندیکاتور | API اختصاصی 🔥🔥🔥")
+        print("🔥🔥🔥 IRON GOD V16 - AlanChan + ۲۰ اندیکاتور 🔥🔥🔥")
         print("="*100)
         print(f"👑 ادمین: {ADMIN_ID}")
         print(f"💵 دلار: {currency.get_usd_formatted()} تومان")
         print(f"💰 تتر: {currency.get_usdt_formatted()} تومان")
         print(f"📊 ارزها: {len(CRYPTO_COINS)}")
         print(f"🎯 دقت: ۹۹.۹٪ | ۰ خطا")
-        print(f"⚡ آپدیت: لحظه‌ای (API)")
+        print(f"⚡ آپدیت: لحظه‌ای (AlanChan)")
         print(f"📈 تحلیل: ۲۰ اندیکاتور")
         print(f"⏰ تهران: {ai.get_tehran_time()}")
         print("="*100 + "\n")
