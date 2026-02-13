@@ -55,6 +55,9 @@ if os.path.exists("/data"):
 else:
     DB_PATH = "iron_god_v10.db"
 
+print(f"🚀 ربات {BOT_VERSION} در حال راه‌اندازی...")
+print(f"📁 دیتابیس: {DB_PATH}")
+
 # ============================================
 # 💰 قیمت لحظه‌ای دلار و تتر - با لاگ آپدیت
 # ============================================
@@ -392,7 +395,7 @@ CRYPTO_COINS = {
 }
 
 # ============================================
-# 🗄️ دیتابیس با کش دسترسی
+# 🗄️ دیتابیس با کش دسترسی - نسخه نهایی
 # ============================================
 
 class Database:
@@ -401,6 +404,7 @@ class Database:
         self.access_cache = {}
         self.cache_timeout = 60
         self._init_db()
+        print("✅ Database راه‌اندازی شد")
     
     def _init_db(self):
         try:
@@ -422,6 +426,7 @@ class Database:
                     is_active INTEGER DEFAULT 1
                 )''')
                 conn.commit()
+                print("✅ جداول دیتابیس ایجاد شد")
         except Exception as e:
             print(f"❌ خطا در دیتابیس: {e}")
     
@@ -452,8 +457,10 @@ class Database:
                     (user_id, username, first_name, expiry, license_type, last_active) 
                     VALUES (?, ?, ?, ?, ?, ?)''',
                     (user_id, username or "", first_name or "", expiry, license_type, time.time()))
+                print(f"✅ کاربر {user_id} با نوع {license_type} تا {datetime.fromtimestamp(expiry)} اضافه شد")
                 return True
-        except:
+        except Exception as e:
+            print(f"❌ خطا در افزودن کاربر: {e}")
             return False
     
     def update_activity(self, user_id: str):
@@ -469,6 +476,7 @@ class Database:
             with self._get_conn() as conn:
                 conn.execute("INSERT INTO licenses (license_key, days, license_type, is_active) VALUES (?, ?, ?, 1)",
                            (key, days, license_type))
+            print(f"🔑 لایسنس {key} برای {days} روز ایجاد شد")
             return key
         except:
             return f"VIP-{uuid.uuid4().hex[:8].upper()}"
@@ -479,9 +487,11 @@ class Database:
                 data = conn.execute("SELECT days, license_type, is_active FROM licenses WHERE license_key = ?", (key,)).fetchone()
                 
                 if not data:
+                    print(f"❌ لایسنس {key} برای کاربر {user_id} یافت نشد!")
                     return False, "❌ لایسنس یافت نشد!", "regular", 0
                 
                 if data[2] == 0:
+                    print(f"❌ لایسنس {key} قبلاً استفاده شده!")
                     return False, "❌ این لایسنس قبلاً استفاده شده!", "regular", 0
                 
                 days = data[0]
@@ -499,40 +509,52 @@ class Database:
                 conn.execute("UPDATE licenses SET is_active = 0 WHERE license_key = ?", (key,))
                 self.add_user(user_id, username, first_name, new_expiry, lic_type)
                 
-                # پاک کردن کش دسترسی
+                # پاک کردن کش و ست کردن مقدار جدید
                 self.clear_access_cache(user_id)
+                self.access_cache[user_id] = (time.time(), True, lic_type)
                 
                 expiry_date = datetime.fromtimestamp(new_expiry).strftime('%Y/%m/%d')
+                print(f"✅ لایسنس {key} برای کاربر {user_id} فعال شد - نوع: {lic_type}")
                 return True, f"{msg}\n📅 تاریخ انقضا: {expiry_date}", lic_type, new_expiry
+                
         except Exception as e:
+            print(f"❌ خطا در فعال‌سازی لایسنس: {e}")
             return False, f"❌ خطا در فعال‌سازی: {str(e)}", "regular", 0
     
     def check_access(self, user_id: str) -> Tuple[bool, Optional[str]]:
-        """بررسی دسترسی کاربر با کش"""
+        """بررسی دسترسی کاربر با کش و لاگ"""
         if str(user_id) == str(ADMIN_ID):
+            print(f"👑 ادمین {user_id} دسترسی دارد")
             return True, "admin"
         
         now = time.time()
+        
         if user_id in self.access_cache:
             cached_time, cached_access, cached_type = self.access_cache[user_id]
             if now - cached_time < self.cache_timeout:
+                print(f"📦 کش برای {user_id}: {cached_access}, {cached_type}")
                 return cached_access, cached_type
         
         user = self.get_user(user_id)
+        
         if not user:
+            print(f"❌ کاربر {user_id} در دیتابیس نیست")
             result = (False, None)
         elif user.get('expiry', 0) > now:
+            days = int((user['expiry'] - now) // 86400)
+            print(f"✅ کاربر {user_id} دسترسی دارد - {days} روز باقی‌مانده")
             result = (True, user.get('license_type', 'regular'))
         else:
+            print(f"❌ کاربر {user_id} دسترسی ندارد - انقضا گذشته")
             result = (False, None)
         
         self.access_cache[user_id] = (now, result[0], result[1])
         return result
     
     def clear_access_cache(self, user_id: str):
-        """پاک کردن کش دسترسی کاربر"""
         if user_id in self.access_cache:
             del self.access_cache[user_id]
+            print(f"🗑️ کش {user_id} پاک شد")
     
     def get_all_users(self) -> List[Dict]:
         try:
@@ -546,6 +568,7 @@ class Database:
             with self._get_conn() as conn:
                 conn.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
                 self.clear_access_cache(user_id)
+                print(f"🗑️ کاربر {user_id} حذف شد")
                 return True
         except:
             return False
@@ -993,7 +1016,7 @@ class IronGodBot:
                 text=f"🚀 **{self.version} - راه‌اندازی شد!**\n\n"
                      f"⏰ {ai.get_tehran_time()}\n"
                      f"💵 دلار: `{usd}` تومان\n"
-                     f"💰 تتر: `{usdt}` تومان\n"
+                     f"💰 تتر: `{usdt}` تومан\n"
                      f"💰 BTC: `{btc:,.0f}` دلار\n"
                      f"📊 {len(CRYPTO_COINS)} ارز | آپدیت هر ۵ ثانیه\n"
                      f"🔥 **آماده نابودی رقیبا!**"
@@ -1003,6 +1026,8 @@ class IronGodBot:
     
     async def show_user_menu(self, update: Update, first_name: str, lic_type: str, expiry: float):
         """نمایش منوی کاربر بعد از فعال‌سازی"""
+        print(f"📋 نمایش منو برای {first_name} - lic_type={lic_type}")
+        
         remaining = expiry - time.time()
         days = int(remaining // 86400) if remaining > 0 else 0
         btc = crypto.get_price('BTC-USD')
@@ -1013,6 +1038,7 @@ class IronGodBot:
         
         # دوباره از دیتابیس چک کن
         has_access, db_lic_type = db.check_access(user_id)
+        print(f"🔍 منو: has_access={has_access}, db_lic_type={db_lic_type}")
         
         if db_lic_type == 'premium':
             keyboard = [
@@ -1112,30 +1138,39 @@ class IronGodBot:
         first_name = user.first_name or ""
         text = update.message.text
         
-        db.update_activity(user_id)
+        print(f"\n📨 پیام از {user_id}: {text}")
         
+        db.update_activity(user_id)
         is_admin = (user_id == self.admin_id)
         
         # فعال‌سازی لایسنس
         if text and text.upper().startswith('VIP-'):
+            print(f"🔑 فعال‌سازی لایسنس: {text}")
             success, message, lic_type, expiry = db.activate_license(
                 text.upper(), user_id, username, first_name
             )
             await update.message.reply_text(message)
             
             if success:
-                await asyncio.sleep(1)
-                # پاک کردن کش و چک مجدد
-                db.clear_access_cache(user_id)
+                print(f"✅ لایسنس فعال شد - صبر ۲ ثانیه...")
+                await asyncio.sleep(2)
+                
+                # چک مجدد دسترسی
                 has_access, db_lic_type = db.check_access(user_id)
+                print(f"🔍 بعد از فعال‌سازی: has_access={has_access}, type={db_lic_type}")
+                
+                # نمایش منو
                 await self.show_user_menu(update, first_name, db_lic_type, expiry)
             return
         
-        # چک دسترسی برای بقیه موارد
+        # چک دسترسی
         has_access, license_type = db.check_access(user_id)
         is_premium = (license_type == 'premium')
         
+        print(f"🔍 دسترسی: has_access={has_access}, type={license_type}")
+        
         if not has_access and not is_admin:
+            print(f"🚫 دسترسی محدود برای {user_id}")
             await update.message.reply_text(
                 "🔐 **دسترسی محدود!**\n\n"
                 "کد لایسنس رو بفرست:\n"
@@ -1484,11 +1519,12 @@ class IronGodBot:
         try:
             self.app.run_polling(drop_pending_updates=True)
         except Conflict:
+            print("⚠️ Conflict detected - restarting in 5 seconds...")
             time.sleep(5)
             self._cleanup_webhook()
             self.run()
         except Exception as e:
-            print(f"⚠️ خطا: {e}")
+            print(f"⚠️ خطا: {e} - restarting in 5 seconds...")
             time.sleep(5)
             self.run()
 
